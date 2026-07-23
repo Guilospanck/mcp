@@ -74,3 +74,12 @@ There are also some primitives that CLIENTS can expose:
 ## Notifications
 
 The protocol supports real-time notification by using the JSON-RPC 2.0 notification messages without expecting a response. This can be useful when servers want to inform clients that something changed.
+
+## Debugging
+
+Go [here](https://modelcontextprotocol.io/docs/tools/inspector).
+
+For the weather MCP server, do:
+```sh
+just debug-weather
+```
