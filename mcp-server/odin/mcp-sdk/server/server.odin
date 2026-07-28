@@ -8,8 +8,6 @@ Server_Transport :: enum {
   stdio,
 }
 
-Server :: struct {}
-
 run :: proc(server: ^Server, srv_transport: Server_Transport, allocator := context.allocator) {
   transport: ^transport_layer.Transport
   switch srv_transport {

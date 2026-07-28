@@ -121,11 +121,3 @@ method_name :: proc(m: Method) -> string {
   return ""
 }
 
-method_from_name :: proc(s: string) -> (Method, bool) {
-  for m in Method {
-    if method_name(m) == s do return m, true
-  }
-
-  return {}, false
-}
-
