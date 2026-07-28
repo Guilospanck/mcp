@@ -1,10 +1,9 @@
-package mcp_server
+package weather_mcp_server
 
-NWSAPIBase :: "https://api.weather.gov"
-UserAgent :: "weather-app/1.0"
-
+import mcp_sdk "../mcp-sdk/server"
 
 main :: proc() {
-  unimplemented("Waiting on HTTP package")
+  server := mcp_sdk.Server{}
+  mcp_sdk.run(&server, .stdio)
 }
 
