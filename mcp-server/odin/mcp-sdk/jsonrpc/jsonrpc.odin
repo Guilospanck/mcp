@@ -10,7 +10,3 @@ package jsonrpc
 
 JSONRPC_VERSION :: "2.0"
 
-validate_response_match_request :: proc(req: JSONRPC_Request, res: JSONRPC_Response) -> bool {
-  unimplemented()
-}
-
