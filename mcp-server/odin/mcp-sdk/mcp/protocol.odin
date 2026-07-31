@@ -26,97 +26,95 @@ that (instead of just breaking the application)
 
 */
 
-
 Method :: enum {
-  Initialize,
-  Ping,
+  /****** Client -> Server (request) ******/
 
-  /* TOOLS */
+  // Discover server identity & capabilities
+  Server_Discover,
+  // List available tools
   Tools_List,
+  // Execute a tool
   Tools_Call,
-
-  /* RESOURCES */
+  // List resources
   Resources_List,
-  Resources_Read,
-  Resources_Subscribe,
-  Resources_Unsubscribe,
+  // List resource templates
   Resources_Templates_List,
-
-  /* PROMPTS */
+  // Read a resource
+  Resources_Read,
+  // Subscribe to resource change streams
+  Subscriptions_Listen,
+  // List prompts
   Prompts_List,
+  // Get a prompt
   Prompts_Get,
-
-  /* COMPLETION */
+  // Argument completion
   Completion_Complete,
 
-  /* LOGGING */
-  Logging_SetLevel,
+  /****** Server -> Client (request) ******/
 
-  /* SAMPLING */
-  Sampling_CreateMessage,
+  // Request user input (MRTR pattern)
+  Elicitation_Create,
 
-  /* ROOTS */
-  Roots_List,
+  /****** Notifications (one-way, no response) ******/
 
-  /* NOTIFICATIONS */
-  Notification_Initialized,
-  Notification_Cancelled,
-  Notification_Tools_List_Changed,
-  Notification_Resources_List_Changed,
-  Notification_Resources_Updated,
-  Notification_Prompts_List_Changed,
-  Notification_Logging_Message,
-  Notification_Roots_List_Changed,
+  // Server announces tool list changed
+  Notifications_Tools_List_Changed,
+  // Server announces resource list changed
+  Notifications_Resources_List_Changed,
+  // Server announces resource content updated
+  Notifications_Resources_Updated,
+  // Server announces prompt list changed
+  Notifications_Prompts_List_Changed,
+  // Server acknowledges a subscription
+  Notifications_Subscriptions_Acknowledged,
+  // Progress reporting for long-running operations
+  Notifications_Progress,
+  // Cancel a previously issued request
+  Notifications_Cancelled,
+  // Log message from a server or client
+  Notifications_Message,
 }
 
 method_name :: proc(m: Method) -> string {
   switch m {
-  case .Initialize:
-    return "initialize"
-  case .Ping:
-    return "ping"
+  case .Server_Discover:
+    return "server/discover"
   case .Tools_List:
     return "tools/list"
   case .Tools_Call:
     return "tools/call"
   case .Resources_List:
     return "resources/list"
-  case .Resources_Read:
-    return "resources/read"
-  case .Resources_Subscribe:
-    return "resources/subscribe"
-  case .Resources_Unsubscribe:
-    return "resources/unsubscribe"
   case .Resources_Templates_List:
     return "resources/templates/list"
+  case .Resources_Read:
+    return "resources/read"
+  case .Subscriptions_Listen:
+    return "subscriptions/listen"
   case .Prompts_List:
     return "prompts/list"
   case .Prompts_Get:
     return "prompts/get"
   case .Completion_Complete:
     return "completion/complete"
-  case .Logging_SetLevel:
-    return "logging/setLevel"
-  case .Sampling_CreateMessage:
-    return "sampling/createMessage"
-  case .Roots_List:
-    return "roots/list"
-  case .Notification_Initialized:
-    return "notifications/initialized"
-  case .Notification_Cancelled:
-    return "notifications/cancelled"
-  case .Notification_Tools_List_Changed:
+  case .Elicitation_Create:
+    return "elicitation/create"
+  case .Notifications_Tools_List_Changed:
     return "notifications/tools/list_changed"
-  case .Notification_Resources_List_Changed:
+  case .Notifications_Resources_List_Changed:
     return "notifications/resources/list_changed"
-  case .Notification_Resources_Updated:
+  case .Notifications_Resources_Updated:
     return "notifications/resources/updated"
-  case .Notification_Prompts_List_Changed:
+  case .Notifications_Prompts_List_Changed:
     return "notifications/prompts/list_changed"
-  case .Notification_Logging_Message:
+  case .Notifications_Subscriptions_Acknowledged:
+    return "notifications/subscriptions/acknowledged"
+  case .Notifications_Progress:
+    return "notifications/progress"
+  case .Notifications_Cancelled:
+    return "notifications/cancelled"
+  case .Notifications_Message:
     return "notifications/message"
-  case .Notification_Roots_List_Changed:
-    return "notifications/roots/list_changed"
   }
   return ""
 }
