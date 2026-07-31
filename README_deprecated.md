@@ -1,0 +1,286 @@
+# MCP Protocol
+
+## Participants in the MCP architecture
+
+- MCP Host: for example Visual Studio Code.
+- MCP Client: a component that maintains a connection to an MCP server and obtains its context so the Host can use.
+- MCP Server: the program that servers the context data.
+
+A host application creates and manages multiple clients, with each client having a 1:1 relationship with a particular server.
+
+## Layers
+
+- Data layer: defines the JSON-RPC (2.0) based protocol for client-server communication.
+- Transport layer: defines how that data will be transported between client and server (stdio, Streamable HTTP)
+
+## MCP Server
+
+An MCP server is the program that servers context data.
+
+- A "local" MCP server typically uses STDIO
+- A "remote" MCP server typically uses Streamable HTTP transport.
+
+
+## Lifecycle
+
+MCP is a stateful protocol that requires lifecycle management. Its purpose is to negotiate the capabilities that both client and server support.
+
+Three phases: `Initialization`, `Operation` and `Shutdown`.
+
+### Initialization
+
+- Establish protocol version compatibility
+- Exchange and negotiate capabilities
+- Share impl details
+
+The clients MUST initiate this phase by sending an `initialize` request containing:
+
+- Protocol version supported
+- Client capabilities
+- Client implementation information
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2025-11-25", // a MUST
+    "capabilities": {
+      "roots": {
+        "listChanged": true
+      },
+      "sampling": {},
+      "elicitation": {
+        "form": {},
+        "url": {}
+      },
+      "tasks": {
+        "requests": {
+          "elicitation": {
+            "create": {}
+          },
+          "sampling": {
+            "createMessage": {}
+          }
+        }
+      }
+    },
+    "clientInfo": {
+      "name": "ExampleClient",
+      "title": "Example Client Display Name",
+      "version": "1.0.0",
+      "description": "An example MCP client application",
+      "icons": [
+        {
+          "src": "https://example.com/icon.png",
+          "mimeType": "image/png",
+          "sizes": ["48x48"]
+        }
+      ],
+      "websiteUrl": "https://example.com"
+    }
+  }
+}
+```
+
+The server MUST respond with its own capabilities and information:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "protocolVersion": "2025-11-25",
+    "capabilities": {
+      "logging": {},
+      "prompts": {
+        "listChanged": true
+      },
+      "resources": {
+        "subscribe": true,
+        "listChanged": true
+      },
+      "tools": {
+        "listChanged": true
+      },
+      "tasks": {
+        "list": {},
+        "cancel": {},
+        "requests": {
+          "tools": {
+            "call": {}
+          }
+        }
+      }
+    },
+    "serverInfo": {
+      "name": "ExampleServer",
+      "title": "Example Server Display Name",
+      "version": "1.0.0",
+      "description": "An example MCP server providing tools and resources",
+      "icons": [
+        {
+          "src": "https://example.com/server-icon.svg",
+          "mimeType": "image/svg+xml",
+          "sizes": ["any"]
+        }
+      ],
+      "websiteUrl": "https://example.com/server"
+    },
+    "instructions": "Optional instructions for the client"
+  }
+}
+```
+
+And then after succesful initialization, the client MUST send an `initialized` notification (message without id) to indicate that it's ready to begin normal operations:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "notifications/initialized"
+}
+```
+
+> ![NOTE] 
+> The client SHOULD NOT send requests other than `pings` before the server has responded to the `initialize` request;
+> The server SHOULD NOT send requests other than `pings` and `logging` before receiving the `initialized` notification.
+
+> ![NOTE] 
+> The protocol version is a MUST. SHOULD be the latest each one supports.
+> If the client doesn't support the one from the server, it SHOULD disconnect.
+
+> ![NOTE] 
+> If HTTP, the client MUST include the `MCP-Protocol-Version: <protocol-version>` HTTP header on all subsequent requests to the MCP server.
+
+#### [Capabilities](https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#capability-negotiation)
+
+Each capability category object can describe sub-capabilities like:
+
+- `listChanged`: support for list change notifications
+- `subscribe`: support for subscribing to individual items' changes (resources only)
+
+### Operation
+
+During this phase, client and server exchange messages according to their negotiated capabilities. Both parties MUST respect that and the protocol version agreed on.
+
+### Shutdown
+
+There are no specific messages. The underlying transport mechanism (stdio, http) should be used to signal connection termination.
+
+#### stdio
+
+Client SHOULD:
+
+1) Close the input stream to the child process (server)
+2) Wait for the server to exit, or send `SIGTERM` if the server does not exit within a reasonable time
+3) Send `SIGKILL` if the server doesn't exit within a reasonable time after `SIGTERM`
+
+Server MAY:
+
+-  Just close its output stream to the client and exit.
+
+
+## Timeouts
+
+There SHOULD be timeouts in order to prevent requests hanging forever. When a timeout happens, it should send (either side - a client or server) a cancellation notification:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "notifications/cancelled",
+  "params": {
+    "requestId": "123", // required
+    "reason": "User requested cancellation" // optional
+  }
+}
+```
+
+A couple of gotchas:
+
+- MUST only reference requests that were sent in the same direction AND are believed to be still in-progress
+- A client MUST NOT try to cancel the `initialize` requuest
+- The `receivers` of a cancellation notification SHOULD:
+  - stop processing the cancelled request
+  - free associated resources
+  - not send a response to the cancelled request
+- The `receivers` MAY ignore if:
+  - they don't know the referenced request
+  - processing has already completed
+  - the request cannot be cancelled
+- The `sender` of the cancellation notification SHOULD ignore any response to the request that arrives afterward
+
+## Transports
+
+### stdio
+
+- client launches the server as a subprocess
+- server reads the JSON-RPC messages from its `stdin` and sends messages to its standard output `stdout`
+- messages are individual JSON-RPC requests, notifications or responses
+- messages are delimited by newlines and MUST NOT contain embedded newlines
+- the server may write UTF-8 strings to its standard error (`stderr`) for any logging purposes including informational, debug and error messages
+- the server MUST NOT write anything to its `stdout` that is not a valid MCP message
+- the client MUST NOT write anything to the server's `stdin` that is not a valid MCP message
+
+
+## Primitives
+
+Defines what client and servers can offer each other.
+
+### Server primitives
+
+- `Tools`: executable functions that can be invoked to perform actions (file operations, API calls, database queries)
+  
+  Tools protocol operations:
+
+  - `tools/list`: discover available tools. Returns an array of tool definition with schemas.
+  - `tools/call`: execute a specific tool. Returns the tool execution result.
+
+- `Resources`: data sources (read-only) that provide contextual information (file contents, database records, API records). Each resource has a unique URI and declares its MIME type for appropriate content handling. There are two discovery patterns:
+  a) Direct resources: fixed URIs that point to a specific data. Example `calendar://events/2024` returns calendar availability for 2024;
+  b) Resource templates: dynamic URIs with parameters for flexible queries. Example `travel://activities/{city}/{category}` returns activities by city and category; `travel://activities/barcelona/museums` returns all museums in Barcelona.
+  Resource templates include metadata such as title, description and expected MIME type, so they are discoverable and self-documenting.
+
+  Resources protocol operations:
+
+  - `resources/list`: list available direct resources. Returns an array of resources descriptors.
+  - `resources/templates/list`: discover resource templates. Returns an array of resources template definitions.
+  - `resources/read`: retrieve resource contents. Returns a resource data with metadata.
+  - `resources/subscribe`: monitor resource changes. Returns a subscription confirmation.
+
+- `Prompts`: reusable templates that help structure interactions with language models (system prompts). They are user-controlled, therefore require explicit invocation.
+  
+  Prompts protocol operations:
+
+  - `prompts/list`: discover available prompts. Returns an array of prompt descriptors
+  - `prompts/get`: retrieve prompt details. Returns full prompt definition with arguments
+
+Each primitive type has associated methods for:
+
+- discovery (`*/list`)
+- retrieval (`*/get`)
+- execution (`tools/call`)
+
+MCP clients use the `*/list` to discover available primitives. Example `tools/list`. This allows the list to be dynamic.
+
+### Client primitives
+
+There are also some primitives that CLIENTS can expose:
+
+- `sampling`: allows servers to request language model completions from the client's AI application. `sampling/createMessage`
+- `elicitation`: allows servers to requests additional information from the user, like ask for confirmation of an action. `elicitation/create`
+- `roots`: provides a way for clients to expose filesystem roots to servers. Those roots define the boundaries of where servers can operate within the filesystem.
+- `logging`: allows servers to send log messages to clients for debugging and monitoring purposes
+
+## Notifications
+
+The protocol supports real-time notification by using the JSON-RPC 2.0 notification messages without expecting a response. This can be useful when servers want to inform clients that something changed.
+
+## Debugging
+
+Go [here](https://modelcontextprotocol.io/docs/tools/inspector).
+
+For the weather MCP server, do:
+```sh
+just debug-weather
+```
