@@ -2,6 +2,7 @@ package server
 
 import jsonrpc "../jsonrpc"
 import transport_layer "../transport"
+import "core:encoding/json"
 import "core:fmt"
 import "core:mem/virtual"
 
@@ -46,10 +47,21 @@ run :: proc(server: ^Server, srv_transport: Server_Transport, allocator := conte
     }
 
     res := dispatch(server, req)
+    if res == nil do continue
 
-    fmt.eprintfln("\n\ndispath res: %+v", res)
+    res_bytes, marshal_err := json.marshal(res)
+    if marshal_err != nil {
+      fmt.eprintfln("\n\nerror marshalling res: %+v", marshal_err)
+      continue
+    }
 
+    transport_err := transport.write(transport, res_bytes)
+    if transport_err != nil {
+      fmt.eprintfln("\n\ncould not write to transport: %+v", transport_err)
+      continue
+    }
 
+    fmt.eprintln("[OK] Sent response.")
   }
 }
 
