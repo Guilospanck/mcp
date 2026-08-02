@@ -10,3 +10,8 @@ package jsonrpc
 
 JSONRPC_VERSION :: "2.0"
 
+ID :: union {
+  string,
+  i64,
+}
+

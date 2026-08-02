@@ -3,10 +3,7 @@ package jsonrpc
 import "core:encoding/json"
 import "core:fmt"
 
-Response_Id :: union {
-  string,
-  i64,
-}
+Response_Id :: ID
 
 JSONRPC_Response :: struct {
   // must be exactly "2.0"
@@ -21,7 +18,7 @@ JSONRPC_Response :: struct {
   // if success: MUST NOT exist
   error:   Maybe(Response_Error),
 
-  // REQUIRED. The same that was in the Response object
+  // REQUIRED. The same that was in the Request object
   id:      Response_Id,
 }
 
@@ -111,5 +108,17 @@ parse_response :: proc(
   }
 
   return res, nil
+}
+
+create_result_response :: proc(data: any, id: Response_Id) -> JSONRPC_Response {
+  bytes, _ := json.marshal(data, {}, context.allocator)
+  json_data: json.Value
+  json.unmarshal(bytes, &json_data, json.DEFAULT_SPECIFICATION, context.allocator)
+
+  return JSONRPC_Response{jsonrpc = JSONRPC_VERSION, id = id, result = json_data}
+}
+
+create_error_response :: proc(error: Response_Error, id: Response_Id) -> JSONRPC_Response {
+  return JSONRPC_Response{jsonrpc = JSONRPC_VERSION, id = id, error = error}
 }
 

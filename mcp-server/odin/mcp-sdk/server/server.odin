@@ -1,5 +1,6 @@
 package server
 
+import jsonrpc "../jsonrpc"
 import transport_layer "../transport"
 import "core:fmt"
 import "core:mem/virtual"
@@ -38,7 +39,17 @@ run :: proc(server: ^Server, srv_transport: Server_Transport, allocator := conte
     bytes, err := transport.read(transport)
     if err != nil do break
 
-    fmt.eprintfln("Bytes: %s", bytes)
+    req, jsonrpc_err := jsonrpc.parse_request(bytes)
+    if jsonrpc_err != nil {
+      fmt.eprintfln("\n\ncould not parse req: %+v", jsonrpc_err)
+      continue
+    }
+
+    res := dispatch(server, req)
+
+    fmt.eprintfln("\n\ndispath res: %+v", res)
+
+
   }
 }
 

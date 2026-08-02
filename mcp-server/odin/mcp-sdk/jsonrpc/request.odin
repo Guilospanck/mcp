@@ -8,8 +8,7 @@ DISALLOWED_METHOD_PREFIX :: "rpc."
 
 Request_Id :: union {
   json.Null,
-  string,
-  i64,
+  ID,
 }
 
 Request_Params :: union {

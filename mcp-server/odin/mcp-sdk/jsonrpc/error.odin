@@ -8,10 +8,15 @@ is_error_code_in_forbidden_range :: proc(code: i64) -> bool {
 }
 
 Explicit_Error_Code :: enum i64 {
+  // Invalid JSON
   Parse_Error      = -32700,
+  // Malformed request object
   Invalid_Request  = -32600,
+  // Method does not exist
   Method_Not_Found = -32601,
+  // Invalid/missing parameters (also used for resource not found)
   Invalid_Params   = -32602,
+  // Unexpected internal error
   Internal_Error   = -32603,
   Server_Error_Min = -32099,
   Server_Error_Max = -32000,

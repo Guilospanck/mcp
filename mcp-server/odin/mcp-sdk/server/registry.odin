@@ -6,19 +6,10 @@ Registry never reads a request.
 */
 package server
 
-/*
-> The client SHOULD NOT send requests other than `pings` before the server has responded to the `initialize` request;
-
-> The server SHOULD NOT send requests other than `pings` and `logging` before receiving the `initialized` notification.
-
-*/
-Lifecycle :: enum {
-  Uninitialized,
-  Initializing,
-  Initialized,
-}
+import mcp "../mcp"
 
 Server :: struct {
-  state: Lifecycle,
+  info:         mcp.Server_Info,
+  capabilities: mcp.Server_Capabilities,
 }
 
