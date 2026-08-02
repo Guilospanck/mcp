@@ -216,16 +216,14 @@ Client_Info :: Implementation
 Server_Info :: Implementation
 
 Tools_Capab :: struct {
-  list_changed: Maybe(bool) `json:"listChanged"`,
+  list_changed: Maybe(bool) `json:"listChanged,omitempty"`,
 }
-
 Resources_Capab :: struct {
-  list_changed: Maybe(bool) `json:"listChanged"`,
-  subscribe:    Maybe(bool),
+  list_changed: Maybe(bool) `json:"listChanged,omitempty"`,
+  subscribe:    Maybe(bool) `json:"subscribe,omitempty"`,
 }
-
 Prompts_Capab :: struct {
-  list_changed: Maybe(bool) `json:"listChanged"`,
+  list_changed: Maybe(bool) `json:"listChanged,omitempty"`,
 }
 
 // Value of the `capabilities` in response to a `server/discover` request.
