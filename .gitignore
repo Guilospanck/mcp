@@ -1,2 +1,5 @@
 *.bin
 **/tmp
+
+# Remove weather bin file
+mcp-server/odin/weather/weather

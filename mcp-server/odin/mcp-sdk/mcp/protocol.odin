@@ -123,6 +123,14 @@ method_name :: proc(m: Method) -> string {
   return ""
 }
 
+method_from_name :: proc(s: string) -> (Method, bool) {
+  for m in Method {
+    if method_name(m) == s do return m, true
+  }
+
+  return {}, false
+}
+
 MCP_Specific_Error :: enum i64 {
   // HTTP headers don't match request body values
   Header_Mismatch                    = -32020,
@@ -216,13 +224,19 @@ Client_Info :: Implementation
 Server_Info :: Implementation
 
 Tools_Capab :: struct {
+  // This indicates whether the server will emit
+  // notifications (`"notifications/tools/list_changed"`) when the list of available tools changes
   list_changed: Maybe(bool) `json:"listChanged,omitempty"`,
 }
 Resources_Capab :: struct {
+  // This indicates whether the server will emit
+  // notifications when the list of available resources changes
   list_changed: Maybe(bool) `json:"listChanged,omitempty"`,
   subscribe:    Maybe(bool) `json:"subscribe,omitempty"`,
 }
 Prompts_Capab :: struct {
+  // This indicates whether the server will emit
+  // notifications when the list of available prompts changes
   list_changed: Maybe(bool) `json:"listChanged,omitempty"`,
 }
 
@@ -266,6 +280,7 @@ Prompts_Capab :: struct {
 */
 // Will result in
 Server_Capabilities :: struct {
+  // Server that declare this MUST respond to `tools/list` requests with the set of tools currently available to the requesting client.
   tools:        Maybe(Tools_Capab) `json:"tools,omitempty"`,
   resources:    Maybe(Resources_Capab) `json:"resources,omitempty"`,
   prompts:      Maybe(Prompts_Capab) `json:"prompts,omitempty"`,
@@ -360,7 +375,30 @@ Server_Discover_Response :: struct {
   supported_versions: []Protocol_Version `json:"supportedVersions"`,
   capabilities:       Server_Capabilities,
   meta:               Server_Discover_Response_Meta `json:"_meta"`,
-  ttl_ms:             Maybe(TTL_ms) `json:"ttlMs"`,
-  cache_scope:        Maybe(string) `json:"cacheScope"`,
+  ttl_ms:             Maybe(TTL_ms) `json:"ttlMs,omitempty"`,
+  cache_scope:        Maybe(string) `json:"cacheScope,omitempty"`,
+}
+
+Theme :: enum {
+  Light,
+  Dark,
+}
+
+theme_name :: proc(t: Theme) -> string {
+  switch t {
+  case .Light:
+    return "light"
+  case .Dark:
+    return "dark"
+  }
+
+  return ""
+}
+
+Icon :: struct {
+  src:       string `json:"src"`,
+  mime_type: Maybe(string) `json:"mimeType,omitempty"`,
+  sizes:     Maybe([]string) `json:"sizes,omitempty"`,
+  theme:     Maybe(string) `json:"theme,omitempty"`,
 }
 
