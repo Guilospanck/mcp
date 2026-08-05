@@ -20,17 +20,50 @@ import "core:slice"
 // Called by the I/O loop at server.odin
 dispatch :: proc(s: ^Server, req: jsonrpc.JSONRPC_Request) -> Maybe(jsonrpc.JSONRPC_Response) {
   method, known := mcp.method_from_name(req.method)
+
+  // We can only process methods that we know
   if !known {
     fmt.eprintfln("Method not recognised: %q", req.method)
     return nil
   }
 
+  ok := validate_meta_exists_in_req_and_it_is_correct(req)
+  if !ok {
+    fmt.eprintfln("_meta does not exist in request: %q", req.method)
+    return nil
+  }
+
+  // Every request MUST have an ID. If not, we will handle it as a notification
   if req.id == nil {
     fmt.eprintln("request ID does not exist")
     // TODO: handle  notifications/progress and notifications/cancelled
     fmt.eprintln("will check for 'notifications/progress' OR 'notifications/cancelled'")
-    return nil
+    return handle_notification(method, req, s)
   }
+
+  return handle_request(method, req, s)
+}
+
+validate_meta_exists_in_req_and_it_is_correct :: proc(req: jsonrpc.JSONRPC_Request) -> bool {
+  /*
+
+  The errors it returns:
+
+  missing protocolVersion or clientCapabilities → -32602 Invalid Params
+  unsupported version → -32022 UnsupportedProtocolVersion
+  missing required client capability for that method → -32021
+
+  */
+  // TODO: implement
+  return true
+
+}
+
+handle_request :: proc(
+  method: mcp.Method,
+  req: jsonrpc.JSONRPC_Request,
+  s: ^Server,
+) -> Maybe(jsonrpc.JSONRPC_Response) {
 
   // TODO: remove #partial once we have all methods implemented
   #partial switch method {
@@ -42,6 +75,31 @@ dispatch :: proc(s: ^Server, req: jsonrpc.JSONRPC_Request) -> Maybe(jsonrpc.JSON
     return jsonrpc.create_result_response(data = data, id = jsonrpc.request_to_response_id(req.id))
   case:
     fmt.eprintfln("known method not implemented yet: %+v", method)
+    return nil
+  }
+}
+
+/*
+
+  Notice that *ONLY* 'notifications/progress'  and 'notifications/cancelled'
+  are both ways (client <-> server), so they are the ONLY ones that we could handle
+  on a request in a MCP server.
+
+*/
+handle_notification :: proc(
+  method: mcp.Method,
+  req: jsonrpc.JSONRPC_Request,
+  s: ^Server,
+) -> Maybe(jsonrpc.JSONRPC_Response) {
+  #partial switch method {
+  case mcp.Method.Notifications_Progress:
+    fmt.println("Need to implement 'notifications/progress'")
+    return nil
+  case mcp.Method.Notifications_Cancelled:
+    fmt.println("Need to implement 'notifications/cancelled'")
+    return nil
+  case:
+    fmt.eprintfln("notification not known or malformed: %+v", method)
     return nil
   }
 }
