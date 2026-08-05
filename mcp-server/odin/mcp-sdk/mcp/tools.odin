@@ -42,14 +42,14 @@ Tools_Call_Request :: struct {
   arguments: Arguments `json:"arguments,omitempty"`,
 }
 
-tool_call_validate :: proc(v: json.Value) -> (Tools_Call_Request, Error) {
+tool_call_validate :: proc(v: json.Value) -> (Tools_Call_Request, Error_Code) {
   bytes, _ := json.marshal(v, {}, context.allocator)
 
   req: Tools_Call_Request
   if json.unmarshal(bytes, &req, json.DEFAULT_SPECIFICATION, context.allocator) != nil {
-    return {}, .Invalid_Params
+    return {}, Error_Code.Invalid_Params
   }
-  if req.name == "" do return {}, .Invalid_Params // required
+  if req.name == "" do return {}, Error_Code.Invalid_Params
   return req, nil
 }
 

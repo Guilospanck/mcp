@@ -29,8 +29,16 @@ dispatch :: proc(s: ^Server, req: jsonrpc.JSONRPC_Request) -> Maybe(jsonrpc.JSON
   }
 
   meta_err := validate_meta(req)
-  // TODO: return error to client
-  if meta_err != nil do return nil
+  if meta_err != nil {
+    response_error := jsonrpc.Response_Error {
+      code    = mcp.error_code_number(meta_err),
+      message = mcp.error_code_message(meta_err),
+    }
+    return jsonrpc.create_error_response(
+      error = response_error,
+      id = jsonrpc.request_to_response_id(req.id),
+    )
+  }
 
   // TODO: check whether the request method requires a client capabilites. If the request doesn't have it,
   // then we return
