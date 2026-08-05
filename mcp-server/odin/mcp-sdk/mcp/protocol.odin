@@ -30,6 +30,88 @@ that (instead of just breaking the application)
 PROTOCOL_VERSION :: "2026-07-28"
 SUPPORTED_VERSIONS := []string{PROTOCOL_VERSION}
 
+Error_Code :: enum i64 {
+  // JSON-RPC standard
+  Parse_Error,
+  Invalid_Request,
+  Method_Not_Found,
+  Invalid_Params,
+  Internal_Error,
+
+  // MCP-specific (2026-07-28)
+  Header_Mismatch,
+  Missing_Required_Client_Capability,
+  Unsupported_Protocol_Version,
+}
+
+error_code_number :: proc(e: Error_Code) -> i64 {
+  switch e {
+  case .Parse_Error:
+    return -32700
+  case .Invalid_Request:
+    return -32600
+  case .Method_Not_Found:
+    return -32601
+  case .Invalid_Params:
+    return -32602
+  case .Internal_Error:
+    return -32603
+  case .Header_Mismatch:
+    return -32020
+  case .Missing_Required_Client_Capability:
+    return -32021
+  case .Unsupported_Protocol_Version:
+    return -32022
+  }
+  return -32603 // fallback: internal
+}
+
+error_code_message :: proc(e: Error_Code) -> string {
+  switch e {
+  case .Parse_Error:
+    return "Parse error"
+  case .Invalid_Request:
+    return "Invalid Request"
+  case .Method_Not_Found:
+    return "Method not found"
+  case .Invalid_Params:
+    return "Invalid params"
+  case .Internal_Error:
+    return "Internal error"
+  case .Header_Mismatch:
+    return "Header mismatch"
+  case .Missing_Required_Client_Capability:
+    return "Missing required client capability"
+  case .Unsupported_Protocol_Version:
+    return "Unsupported protocol version"
+  }
+  return "Internal error"
+}
+
+error_code_from_number :: proc(n: i64) -> (Error_Code, bool) {
+  switch n {
+  case -32700:
+    return .Parse_Error, true
+  case -32600:
+    return .Invalid_Request, true
+  case -32601:
+    return .Method_Not_Found, true
+  case -32602:
+    return .Invalid_Params, true
+  case -32603:
+    return .Internal_Error, true
+  case -32020:
+    return .Header_Mismatch, true
+  case -32021:
+    return .Missing_Required_Client_Capability, true
+  case -32022:
+    return .Unsupported_Protocol_Version, true
+  }
+  // -32000..-32099 is the server-error band — not a named code
+  if n >= -32099 && n <= -32000 do return .Internal_Error, true
+  return {}, false
+}
+
 Method :: enum {
   /****** Client -> Server (request) ******/
 
@@ -401,4 +483,6 @@ Icon :: struct {
   sizes:     Maybe([]string) `json:"sizes,omitempty"`,
   theme:     Maybe(string) `json:"theme,omitempty"`,
 }
+
+Meta :: map[string]json.Value
 
