@@ -2,6 +2,7 @@ package server
 
 import jsonrpc "../jsonrpc"
 import mcp "../mcp"
+import "core:encoding/json"
 import "core:fmt"
 import "core:slice"
 
@@ -27,7 +28,7 @@ dispatch :: proc(s: ^Server, req: jsonrpc.JSONRPC_Request) -> Maybe(jsonrpc.JSON
     return nil
   }
 
-  ok := validate_meta_exists_in_req_and_it_is_correct(req)
+  ok := validate_meta(req)
   if !ok {
     fmt.eprintfln("_meta does not exist in request: %q", req.method)
     return nil
@@ -44,7 +45,7 @@ dispatch :: proc(s: ^Server, req: jsonrpc.JSONRPC_Request) -> Maybe(jsonrpc.JSON
   return handle_request(method, req, s)
 }
 
-validate_meta_exists_in_req_and_it_is_correct :: proc(req: jsonrpc.JSONRPC_Request) -> bool {
+validate_meta :: proc(req: jsonrpc.JSONRPC_Request) -> bool {
   /*
 
   The errors it returns:
@@ -54,9 +55,89 @@ validate_meta_exists_in_req_and_it_is_correct :: proc(req: jsonrpc.JSONRPC_Reque
   missing required client capability for that method → -32021
 
   */
-  // TODO: implement
-  return true
+  // TODO: implement and return the correct error codes (here and elsewhere)
+  if req.params == nil {
+    fmt.eprintln("request doesn't have .params")
+    return false
+  }
 
+  obj: json.Object = nil
+
+  params_array, is_array := req.params.(json.Array)
+  if is_array {
+    for param in params_array {
+      params_object, is_object := param.(json.Object)
+      if !is_object do continue
+
+      // we found an object, check if it has the "_meta"
+      meta, ok := params_object["_meta"]
+      if !ok do continue
+
+      // we found the _meta one
+      obj = params_object
+    }
+
+  } else {
+    params_object, is_object := req.params.(json.Object)
+    if !is_object {
+      fmt.eprintln("params nor array nor object")
+      return false
+    }
+
+    obj = params_object
+  }
+
+  if obj == nil {
+    fmt.eprintln("params nor array nor object or we didn't find _meta in there")
+    return false
+  }
+
+  meta, ok := obj["_meta"]
+  if !ok {
+    fmt.eprintln("meta does not exist in params")
+    return false
+  }
+
+  // at this point we do have at least an object keyed by "_meta".
+  meta_obj, is_meta_object := meta.(json.Object)
+  if !is_meta_object {
+    fmt.eprintln("meta is not an object")
+    return false
+  }
+
+  // now, check for and required fields
+  // 1. protocol version
+  pv, has_pv := meta_obj[mcp.meta_field_name(mcp.Meta_Field.Protocol_Version)]
+  if !has_pv {
+    fmt.eprintln("_meta missing required protocol version")
+    return false
+  }
+  protocol_version, is_pv_string := pv.(json.String)
+  if !is_pv_string {
+    fmt.eprintln("_meta protocol version is not a string")
+    return false
+  }
+  if !slice.contains(mcp.SUPPORTED_VERSIONS, protocol_version) {
+    fmt.eprintln("unsupported protocol version")
+    return false
+  }
+
+  // 2. client capabilities
+  cc, has_cc := meta_obj[mcp.meta_field_name(mcp.Meta_Field.Client_Capabilities)]
+  if !has_cc {
+    fmt.eprintln("_meta missing required client capabilities")
+    return false
+  }
+
+  bytes, _ := json.marshal(cc, {}, context.allocator)
+  client_capabilities: mcp.Client_Capabilities
+  err := json.unmarshal(bytes, &client_capabilities)
+  if err != nil {
+    fmt.eprintln("client capabilities in wrong format (not mcp.Client_Capabilities)")
+    return false
+  }
+
+  return true
 }
 
 handle_request :: proc(
