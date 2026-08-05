@@ -28,11 +28,13 @@ dispatch :: proc(s: ^Server, req: jsonrpc.JSONRPC_Request) -> Maybe(jsonrpc.JSON
     return nil
   }
 
-  ok := validate_meta(req)
-  if !ok {
-    fmt.eprintfln("_meta does not exist in request: %q", req.method)
-    return nil
-  }
+  meta_err := validate_meta(req)
+  // TODO: return error to client
+  if meta_err != nil do return nil
+
+  // TODO: check whether the request method requires a client capabilites. If the request doesn't have it,
+  // then we return
+  // missing required client capability for that method → -32021
 
   // Every request MUST have an ID. If not, we will handle it as a notification
   if req.id == nil {
@@ -45,20 +47,10 @@ dispatch :: proc(s: ^Server, req: jsonrpc.JSONRPC_Request) -> Maybe(jsonrpc.JSON
   return handle_request(method, req, s)
 }
 
-validate_meta :: proc(req: jsonrpc.JSONRPC_Request) -> bool {
-  /*
-
-  The errors it returns:
-
-  missing protocolVersion or clientCapabilities → -32602 Invalid Params
-  unsupported version → -32022 UnsupportedProtocolVersion
-  missing required client capability for that method → -32021
-
-  */
-  // TODO: implement and return the correct error codes (here and elsewhere)
+validate_meta :: proc(req: jsonrpc.JSONRPC_Request) -> mcp.Error_Code {
   if req.params == nil {
     fmt.eprintln("request doesn't have .params")
-    return false
+    return mcp.Error_Code.Invalid_Params
   }
 
   obj: json.Object = nil
@@ -81,7 +73,7 @@ validate_meta :: proc(req: jsonrpc.JSONRPC_Request) -> bool {
     params_object, is_object := req.params.(json.Object)
     if !is_object {
       fmt.eprintln("params nor array nor object")
-      return false
+      return mcp.Error_Code.Invalid_Params
     }
 
     obj = params_object
@@ -89,20 +81,20 @@ validate_meta :: proc(req: jsonrpc.JSONRPC_Request) -> bool {
 
   if obj == nil {
     fmt.eprintln("params nor array nor object or we didn't find _meta in there")
-    return false
+    return mcp.Error_Code.Invalid_Params
   }
 
   meta, ok := obj["_meta"]
   if !ok {
     fmt.eprintln("meta does not exist in params")
-    return false
+    return mcp.Error_Code.Invalid_Params
   }
 
   // at this point we do have at least an object keyed by "_meta".
   meta_obj, is_meta_object := meta.(json.Object)
   if !is_meta_object {
     fmt.eprintln("meta is not an object")
-    return false
+    return mcp.Error_Code.Invalid_Params
   }
 
   // now, check for and required fields
@@ -110,23 +102,23 @@ validate_meta :: proc(req: jsonrpc.JSONRPC_Request) -> bool {
   pv, has_pv := meta_obj[mcp.meta_field_name(mcp.Meta_Field.Protocol_Version)]
   if !has_pv {
     fmt.eprintln("_meta missing required protocol version")
-    return false
+    return mcp.Error_Code.Invalid_Params
   }
   protocol_version, is_pv_string := pv.(json.String)
   if !is_pv_string {
     fmt.eprintln("_meta protocol version is not a string")
-    return false
+    return mcp.Error_Code.Invalid_Params
   }
   if !slice.contains(mcp.SUPPORTED_VERSIONS, protocol_version) {
     fmt.eprintln("unsupported protocol version")
-    return false
+    return mcp.Error_Code.Unsupported_Protocol_Version
   }
 
   // 2. client capabilities
   cc, has_cc := meta_obj[mcp.meta_field_name(mcp.Meta_Field.Client_Capabilities)]
   if !has_cc {
     fmt.eprintln("_meta missing required client capabilities")
-    return false
+    return mcp.Error_Code.Invalid_Params
   }
 
   bytes, _ := json.marshal(cc, {}, context.allocator)
@@ -134,10 +126,10 @@ validate_meta :: proc(req: jsonrpc.JSONRPC_Request) -> bool {
   err := json.unmarshal(bytes, &client_capabilities)
   if err != nil {
     fmt.eprintln("client capabilities in wrong format (not mcp.Client_Capabilities)")
-    return false
+    return mcp.Error_Code.Invalid_Params
   }
 
-  return true
+  return nil
 }
 
 handle_request :: proc(

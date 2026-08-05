@@ -31,3 +31,25 @@ Tools_List_Response :: struct {
   cache_scope: Maybe(string) `json:"cacheScope,omitempty"`,
 }
 
+Arguments :: union {
+  json.Array,
+  json.Object,
+}
+
+Tools_Call_Request :: struct {
+  meta:      Meta `json:"_meta"`,
+  name:      string `json:"name"`,
+  arguments: Arguments `json:"arguments,omitempty"`,
+}
+
+tool_call_validate :: proc(v: json.Value) -> (Tools_Call_Request, Error) {
+  bytes, _ := json.marshal(v, {}, context.allocator)
+
+  req: Tools_Call_Request
+  if json.unmarshal(bytes, &req, json.DEFAULT_SPECIFICATION, context.allocator) != nil {
+    return {}, .Invalid_Params
+  }
+  if req.name == "" do return {}, .Invalid_Params // required
+  return req, nil
+}
+
