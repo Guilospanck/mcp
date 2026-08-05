@@ -11,17 +11,20 @@ Server_Transport :: enum {
 }
 
 run :: proc(server: ^Server, srv_transport: Server_Transport, allocator := context.allocator) {
-  transport: ^transport_layer.Transport
-  switch srv_transport {
-  case .stdio:
-    stdio := transport_layer.stdio_create(allocator)
-    transport = &stdio.transport
-  case:
-    fmt.eprintfln("transport not implemented: %v", srv_transport)
+  transport, ok := make_transport(srv_transport, allocator)
+  if !ok {
     return
   }
   defer transport.close(transport)
 
+  run_with_transport(server, transport, allocator)
+}
+
+run_with_transport :: proc(
+  server: ^Server,
+  transport: ^transport_layer.Transport,
+  allocator := context.allocator,
+) {
   // use arena to allocate memory for the calls in the loop
   arena: virtual.Arena
   if err := virtual.arena_init_growing(&arena); err != nil {
@@ -63,5 +66,26 @@ run :: proc(server: ^Server, srv_transport: Server_Transport, allocator := conte
 
     fmt.eprintln("[OK] Sent response.")
   }
+}
+
+make_transport :: proc(
+  srv_transport: Server_Transport,
+  allocator := context.allocator,
+) -> (
+  ^transport_layer.Transport,
+  bool,
+) {
+  transport: ^transport_layer.Transport
+  switch srv_transport {
+  case .stdio:
+    stdio := transport_layer.stdio_create(allocator)
+    transport = &stdio.transport
+  case:
+    fmt.eprintfln("transport not implemented: %v", srv_transport)
+    return {}, false
+  }
+
+  return transport, true
+
 }
 

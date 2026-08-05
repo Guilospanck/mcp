@@ -1,8 +1,6 @@
 /*
-
-Storage. Hold the tables and the API that the SDK's users call at startup
-
-Registry never reads a request.
+  Storage. Hold the tables and the API that the SDK's users call at startup
+  Registry never reads a request.
 */
 package server
 
