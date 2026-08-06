@@ -15,7 +15,7 @@ Tool :: struct {
   name:          string `json:"name"`,
   title:         Maybe(string) `json:"title,omitempty"`,
   description:   Maybe(string) `json:"description,omitempty"`,
-  input_schema:  json.Object `json:"inputSchema"`,
+  input_schema:  json.Value `json:"inputSchema"`,
   output_schema: Maybe(json.Object) `json:"outputSchema,omitempty"`,
   // Servers MUST consider this untrusted
   annotations:   Maybe(Tool_Annotations) `json:"annotations,omitempty"`,
@@ -42,7 +42,7 @@ Tools_Call_Request :: struct {
   arguments: Arguments `json:"arguments,omitempty"`,
 }
 
-tool_call_validate :: proc(v: json.Value) -> (Tools_Call_Request, Error_Code) {
+tools_call_validate :: proc(v: json.Value) -> (Tools_Call_Request, Error_Code) {
   bytes, _ := json.marshal(v, {}, context.allocator)
 
   req: Tools_Call_Request
@@ -52,4 +52,18 @@ tool_call_validate :: proc(v: json.Value) -> (Tools_Call_Request, Error_Code) {
   if req.name == "" do return {}, Error_Code.Invalid_Params
   return req, nil
 }
+
+decode_args :: proc(args: Arguments, $T: typeid) -> (T, Error_Code) {
+  bytes, _ := json.marshal(args)
+
+  res: T
+  err := json.unmarshal(bytes, &res)
+  if err != nil {
+    return {}, Error_Code.Parse_Error
+  }
+
+  return res, nil
+}
+
+Tools_Call_Response :: struct {}
 

@@ -46,9 +46,6 @@ dispatch :: proc(s: ^Server, req: jsonrpc.JSONRPC_Request) -> Maybe(jsonrpc.JSON
 
   // Every request MUST have an ID. If not, we will handle it as a notification
   if req.id == nil {
-    fmt.eprintln("request ID does not exist")
-    // TODO: handle  notifications/progress and notifications/cancelled
-    fmt.eprintln("will check for 'notifications/progress' OR 'notifications/cancelled'")
     return handle_notification(method, req, s)
   }
 
@@ -154,6 +151,20 @@ handle_request :: proc(
   case mcp.Method.Tools_List:
     data := tools_list(s)
     return jsonrpc.create_result_response(data = data, id = jsonrpc.request_to_response_id(req.id))
+  case mcp.Method.Tools_Call:
+    data, err := tools_call(s, req)
+    if err != nil {
+      response_error := jsonrpc.Response_Error {
+        code    = mcp.error_code_number(err),
+        message = mcp.error_code_message(err),
+      }
+      return jsonrpc.create_error_response(
+        error = response_error,
+        id = jsonrpc.request_to_response_id(req.id),
+      )
+    }
+
+    return jsonrpc.create_result_response(data = data, id = jsonrpc.request_to_response_id(req.id))
   case:
     fmt.eprintfln("known method not implemented yet: %+v", method)
     return nil
@@ -187,7 +198,14 @@ handle_notification :: proc(
 
 // Walk through the tools list in the server's registry
 tools_list :: proc(s: ^Server) -> mcp.Tools_List_Response {
-  tools, _ := slice.map_values(s.tools, context.allocator)
+  tools := make([]mcp.Tool, len(s.tools), context.allocator)
+
+  i := 0
+  for _, entry in s.tools {
+    tools[i] = entry.tool
+    i += 1
+  }
+
   // The spec wants this to be ordered
   slice.sort_by(tools, proc(a, b: mcp.Tool) -> bool {return a.name < b.name})
 
@@ -200,6 +218,53 @@ tools_list :: proc(s: ^Server) -> mcp.Tools_List_Response {
   }
 }
 
+tools_call :: proc(
+  s: ^Server,
+  req: jsonrpc.JSONRPC_Request,
+) -> (
+  mcp.Tools_Call_Response,
+  mcp.Error_Code,
+) {
+  // if the server doesn't allow tool calling, then return
+  if s.capabilities.tools == nil {
+    return {}, mcp.Error_Code.Method_Not_Found
+  }
+
+  // first validate that at least the shape of params is correct for a tools/call request.
+  tools_call_req, tools_call_error := mcp.tools_call_validate(params_to_value(req.params))
+  if tools_call_error != nil {
+    return {}, tools_call_error
+  }
+
+  tool_name := tools_call_req.name
+
+  // we can only call tools that the server has
+  tool_entry, has_tool := s.tools[tool_name]
+  if !has_tool {
+    return {}, mcp.Error_Code.Invalid_Params
+  }
+
+  // TODO:
+  // check the input_schema
+
+  // call the tool
+  return tool_entry.callback(req, tools_call_req.arguments)
+}
+
+add_tool :: proc(s: ^Server, tool: mcp.Tool, callback: Tool_Callback) {
+  // set the server capabilities if unset
+  if s.capabilities.tools == nil {
+    s.capabilities.tools = mcp.Tools_Capab{}
+  }
+
+  s.tools[tool.name] = {
+    tool     = tool,
+    callback = callback,
+  }
+
+  fmt.eprintfln("Saved %q tool", tool.name)
+}
+
 // Walk through the resources list in the server's registry
 resources_list :: proc(s: ^Server) -> jsonrpc.JSONRPC_Response {
   unimplemented()
@@ -209,12 +274,22 @@ build_server_discover_response :: proc(s: ^Server) -> mcp.Server_Discover_Respon
   return mcp.Server_Discover_Response {
     result_type = mcp.result_type_name(mcp.Result_Type.Complete),
     supported_versions = mcp.SUPPORTED_VERSIONS,
-    // TODO: improve this as we add more things
     capabilities = s.capabilities,
     meta = mcp.Server_Discover_Response_Meta{server_info = s.info},
     // 3 days
     ttl_ms = 60 * 60 * 24 * 3 * 1000,
     cache_scope = mcp.cache_scope_name(mcp.Cache_Scope.Public),
+  }
+}
+
+params_to_value :: proc(p: jsonrpc.Request_Params) -> json.Value {
+  switch v in p {
+  case json.Object:
+    return v
+  case json.Array:
+    return v
+  case:
+    return nil
   }
 }
 

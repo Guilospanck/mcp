@@ -10,6 +10,10 @@ Server_Transport :: enum {
   stdio,
 }
 
+create_server :: proc(info: Server_Info, allocator := context.allocator) -> Server {
+  return Server{info = info, tools = make(map[string]Tool_Entry, allocator)}
+}
+
 run :: proc(server: ^Server, srv_transport: Server_Transport, allocator := context.allocator) {
   transport, ok := make_transport(srv_transport, allocator)
   if !ok {
@@ -86,6 +90,5 @@ make_transport :: proc(
   }
 
   return transport, true
-
 }
 
