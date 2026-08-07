@@ -2,6 +2,7 @@ package weather_mcp_server
 
 import mcp_sdk "../mcp-sdk/server"
 import tools "./tools"
+import "core:fmt"
 
 main :: proc() {
   server := mcp_sdk.create_server(
@@ -12,7 +13,11 @@ main :: proc() {
     },
   )
 
-  mcp_sdk.add_tool(&server, tools.get_hello_tool_info(), tools.hello_tool) // Hello tool
+  error := mcp_sdk.add_tool(&server, tools.get_hello_tool_info(), tools.hello_tool) // Hello tool
+  if error != nil {
+    fmt.eprintfln("%+v", error)
+    return
+  }
 
   mcp_sdk.run(&server, .stdio)
 }

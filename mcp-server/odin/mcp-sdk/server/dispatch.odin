@@ -244,14 +244,25 @@ tools_call :: proc(
     return {}, mcp.Error_Code.Invalid_Params
   }
 
-  // TODO:
-  // check the input_schema
-
   // call the tool
   return tool_entry.callback(req, tools_call_req.arguments)
 }
 
-add_tool :: proc(s: ^Server, tool: mcp.Tool, callback: Tool_Callback) {
+add_tool :: proc(
+  s: ^Server,
+  tool: mcp.Tool,
+  callback: Tool_Callback,
+) -> Maybe(jsonrpc.Response_Error) {
+  _, tool_already_exists := s.tools[tool.name]
+  if tool_already_exists {
+    return jsonrpc.Response_Error {
+      code = i64(mcp.Error_Code.Invalid_Request),
+      message = mcp.error_code_message(Error_Code.Invalid_Params),
+      data = "Tool already exists",
+    }
+  }
+
+
   // set the server capabilities if unset
   if s.capabilities.tools == nil {
     s.capabilities.tools = mcp.Tools_Capab{}
@@ -263,6 +274,7 @@ add_tool :: proc(s: ^Server, tool: mcp.Tool, callback: Tool_Callback) {
   }
 
   fmt.eprintfln("Saved %q tool", tool.name)
+  return nil
 }
 
 // Walk through the resources list in the server's registry
