@@ -11,37 +11,77 @@ Hello_Tool_Input :: struct {
   height: Maybe(int),
 }
 
+Hello_Tool_Output :: struct {
+  name:   string,
+  age:    int,
+  height: Maybe(int),
+}
+
 hello_tool :: proc(
   req: jsonrpc.JSONRPC_Request,
-  input: mcp_sdk.Tool_Arguments,
+  input: json.Value,
 ) -> (
   mcp_sdk.Tools_Call_Response,
   mcp_sdk.Error_Code,
 ) {
 
   fmt.eprintfln("%+v", req)
-  v, err := mcp_sdk.decode_args(input, Hello_Tool_Input)
+  v, err := mcp_sdk.decode_and_require(input, Hello_Tool_Input, {"name", "age"})
   if err != nil {
-    return {}, err
+    return {}, mcp_sdk.Error_Code.Invalid_Params
   }
 
   fmt.eprintfln("HELLO: name=%s, age=%d, height=%d", v.name, v.age, v.height)
 
-  return {}, nil
+  output: Hello_Tool_Output = {
+    name   = v.name,
+    age    = v.age,
+    height = v.height,
+  }
+
+  output_bytes, output_marshal_err := json.marshal(output)
+  if output_marshal_err != nil {
+    fmt.eprintfln("[hello_tool]: error marshalling output: %v", output_marshal_err)
+    return {}, mcp_sdk.Error_Code.Invalid_Params
+  }
+
+  structured_content: json.Value
+  output_structured_err := json.unmarshal(output_bytes, &structured_content)
+  if output_structured_err != nil {
+    return {}, mcp_sdk.Error_Code.Invalid_Params
+  }
+
+  // For backwards compatibility, a tool that returns structured content SHOULD also return the serialized JSON in a TextContent block.
+  // NOTE: heap-allocate the slice so it outlives this proc; a slice literal
+  // would live on the stack and dangle once we return `res`.
+  content := make([]mcp_sdk.Content_Block, 1)
+  content[0] = mcp_sdk.Text_Content {
+    type = "text",
+    text = transmute(string)(output_bytes),
+  }
+
+  res := mcp_sdk.build_successfull_tools_call_response(
+    content = content,
+    structured_content = structured_content,
+  )
+
+  return res, nil
 }
 
 get_hello_tool_info :: proc() -> mcp_sdk.Tool {
+  input, output := get_hello_tool_schema()
   return mcp_sdk.Tool {
     name = "hello_tool",
     title = "Hello Tool",
     description = "Get hello from a tool",
-    input_schema = get_hello_tool_schema(),
+    input_schema = input,
+    output_schema = output,
   }
 }
 
 @(private = "file")
-get_hello_tool_schema :: proc() -> json.Value {
-  schema := `{
+get_hello_tool_schema :: proc() -> (input: json.Object, output: json.Object) {
+  input_schema := `{
       "type": "object",
       "properties": {
         "name": {
@@ -60,8 +100,29 @@ get_hello_tool_schema :: proc() -> json.Value {
       "required": ["name", "age"]
     }`
 
-  hello_tool_schema, _ := json.parse(transmute([]byte)schema)
+  _ = json.unmarshal(transmute([]byte)input_schema, &input)
 
-  return hello_tool_schema
+  output_schema := `{
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Your name",
+        },
+        "age": {
+          "type": "integer",
+          "description": "Your age",
+        },
+        "height": {
+          "type": "integer",
+          "description": "Your height",
+        }
+      },
+      "required": ["name", "age"]
+  }`
+
+  _ = json.unmarshal(transmute([]byte)output_schema, &output)
+
+  return
 }
 

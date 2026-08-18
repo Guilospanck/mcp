@@ -202,7 +202,7 @@ tools_list :: proc(s: ^Server) -> mcp.Tools_List_Response {
 
   i := 0
   for _, entry in s.tools {
-    tools[i] = entry.tool
+    tools[i] = entry.info
     i += 1
   }
 
@@ -216,6 +216,61 @@ tools_list :: proc(s: ^Server) -> mcp.Tools_List_Response {
     ttl_ms      = 60 * 60 * 24 * 3 * 1000,
     cache_scope = mcp.cache_scope_name(mcp.Cache_Scope.Public),
   }
+}
+
+check_tools_call_input_valid :: proc(
+  tools_call_req: mcp.Tools_Call_Request,
+  tool_entry: Tool_Entry,
+) -> Maybe(mcp.Error_Code) {
+  input_schema := tool_entry.info.input_schema
+
+  // If input states that it requires no parameters, then there's no input
+  // to be validated
+  _, is_explicit_no_param := input_schema.(mcp.Input_Schema_Explicit_Empty_Object)
+  if is_explicit_no_param do return nil
+  _, is_no_param := input_schema.(mcp.Input_Schema_Empty_Object)
+  if is_no_param do return nil
+
+  // check input schema is a json object
+  input_schema_obj, input_schema_obj_exists := input_schema.(json.Object)
+  if !input_schema_obj_exists do return mcp.Error_Code.Invalid_Params
+
+  // check whether the key "properties" exists in that object
+  input_schema_properties, input_schema_properties_exists := input_schema_obj["properties"]
+  if !input_schema_properties_exists do return mcp.Error_Code.Invalid_Params
+
+  // check whether the key "required" exists in that object
+  input_schema_required, input_schema_required_exists := input_schema_obj["required"]
+
+  if !input_schema_required_exists do return mcp.Error_Code.Invalid_Params
+
+  // fill in "required" array
+  required: [dynamic]string
+  input_schema_required_array, is_array := input_schema_required.(json.Array)
+
+  if is_array {
+    for elm in input_schema_required_array {
+      v, is_string := elm.(json.String)
+      if !is_string {
+        // The keys of properties MUST be string
+        return mcp.Error_Code.Invalid_Params
+      }
+      append(&required, string(v))
+    }
+  }
+
+  input_args := tools_call_req.arguments
+  // INFO: this should be validating the actual type, but, as odin
+  // doesn't yet have a lib for that (like zod) and I don't want to do it,
+  // each MCP server implementation should check that.
+  is_input_valid := mcp.validate_input_matches_input_schema(
+    input_args,
+    type_of(input_schema_properties),
+    required[:],
+  )
+  if !is_input_valid do return mcp.Error_Code.Invalid_Params
+
+  return nil
 }
 
 tools_call :: proc(
@@ -244,16 +299,34 @@ tools_call :: proc(
     return {}, mcp.Error_Code.Invalid_Params
   }
 
+  input_err := check_tools_call_input_valid(tools_call_req, tool_entry)
+  if input_err != nil {
+    return {}, mcp.Error_Code.Invalid_Params
+  }
+
   // call the tool
-  return tool_entry.callback(req, tools_call_req.arguments)
+  tools_call_res, tools_call_res_error := tool_entry.handler(req, tools_call_req.arguments)
+  if tools_call_res_error != nil {
+    return {}, tools_call_res_error
+  }
+
+  // validate that, should the tool have an outputSchema defined,
+  // it also has the structuredContent in the response
+  output_schema := tool_entry.info.output_schema
+  if output_schema != nil && tools_call_res.structured_content == nil {
+    fmt.eprintln("output schema was defined but no structuredContent in tools/call response")
+    return {}, mcp.Error_Code.Invalid_Params
+  }
+
+  return tools_call_res, nil
 }
 
 add_tool :: proc(
   s: ^Server,
-  tool: mcp.Tool,
-  callback: Tool_Callback,
+  info: mcp.Tool,
+  handler: Tool_Handler,
 ) -> Maybe(jsonrpc.Response_Error) {
-  _, tool_already_exists := s.tools[tool.name]
+  _, tool_already_exists := s.tools[info.name]
   if tool_already_exists {
     return jsonrpc.Response_Error {
       code = i64(mcp.Error_Code.Invalid_Request),
@@ -268,12 +341,12 @@ add_tool :: proc(
     s.capabilities.tools = mcp.Tools_Capab{}
   }
 
-  s.tools[tool.name] = {
-    tool     = tool,
-    callback = callback,
+  s.tools[info.name] = {
+    info    = info,
+    handler = handler,
   }
 
-  fmt.eprintfln("Saved %q tool", tool.name)
+  fmt.eprintfln("Saved %q tool", info.name)
   return nil
 }
 
