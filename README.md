@@ -1,5 +1,8 @@
 # MCP protocol (2026-07-28)
 
+> [!NOTE]  
+> This repo is totally hand-crafted. No AI was used to write any code.
+
 ## Participants in the MCP architecture
 
 - MCP Host: for example Visual Studio Code.
