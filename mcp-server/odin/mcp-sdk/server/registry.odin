@@ -20,6 +20,9 @@ build_successfull_tools_call_response :: mcp.build_successfull_tools_call_respon
 build_failed_tools_call_response :: mcp.build_failed_tools_call_response
 
 Tool :: mcp.Tool
+Tool_Input_Validator :: mcp.Tool_Input_Validator
+make_input_validator :: mcp.make_input_validator
+
 Error_Code :: mcp.Error_Code
 decode_and_require :: mcp.decode_and_require
 
@@ -35,8 +38,9 @@ Tool_Handler :: #type proc(
 Tool_Name :: string
 
 Tool_Entry :: struct {
-  info:    mcp.Tool,
-  handler: Tool_Handler,
+  info:     mcp.Tool,
+  handler:  Tool_Handler,
+  validate: mcp.Tool_Input_Validator,
 }
 
 Server :: struct {

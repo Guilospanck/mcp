@@ -69,21 +69,30 @@ tools_call_validate :: proc(v: json.Value) -> (Tools_Call_Request, Error_Code) {
   return req, nil
 }
 
+Tool_Input_Validator :: #type proc(_: json.Value) -> bool
+
+make_input_validator :: proc($input_type: typeid) -> Tool_Input_Validator {
+  return proc(input: json.Value) -> bool {
+      _, err := decode_into_type(input, input_type)
+      return err == nil
+    }
+}
+
 // Decode a json.Value into a type T and validate that the
 // `require`d fields are present
+//
 decode_and_require :: proc(args: json.Value, $T: typeid, required: []string) -> (T, Error_Code) {
-  args_as_obj, is_args_obj := args.(json.Object)
-  if !is_args_obj {
+  is_required_ok := check_required(args, required)
+  if !is_required_ok {
     return {}, Error_Code.Invalid_Params
   }
 
-  for req in required {
-    _, exists := args_as_obj[req]
-    if !exists {
-      return {}, Error_Code.Invalid_Params
-    }
-  }
+  return decode_into_type(args, T)
+}
 
+// INFO:
+// typeid here needs to be $ (compile time) because of res: T
+decode_into_type :: proc(args: json.Value, $T: typeid) -> (T, Error_Code) {
   bytes, _ := json.marshal(args)
 
   res: T
@@ -93,6 +102,22 @@ decode_and_require :: proc(args: json.Value, $T: typeid, required: []string) -> 
   }
 
   return res, nil
+}
+
+check_required :: proc(args: json.Value, required: []string) -> bool {
+  args_as_obj, is_args_obj := args.(json.Object)
+  if !is_args_obj {
+    return false
+  }
+
+  for req in required {
+    _, exists := args_as_obj[req]
+    if !exists {
+      return false
+    }
+  }
+
+  return true
 }
 
 Content_Type :: enum {
@@ -136,21 +161,6 @@ Content_Block :: union {
   Text_Content,
   Media_Content,
 }
-
-validate_input_matches_input_schema :: proc(
-  input: json.Value,
-  $input_schema: typeid,
-  required: []string,
-) -> bool {
-  _, err := decode_and_require(input, input_schema, required)
-
-  if err != nil {
-    return false
-  }
-
-  return true
-}
-
 
 build_successfull_tools_call_response :: proc(
   content: []Content_Block,

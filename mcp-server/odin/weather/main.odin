@@ -13,7 +13,12 @@ main :: proc() {
     },
   )
 
-  error := mcp_sdk.add_tool(&server, tools.get_hello_tool_info(), tools.hello_tool) // Hello tool
+  error := mcp_sdk.add_tool(
+    s = &server,
+    info = tools.get_hello_tool_info(),
+    handler = tools.hello_tool,
+    input_validator = mcp_sdk.make_input_validator(tools.Hello_Tool_Input),
+  )
   if error != nil {
     fmt.eprintfln("%+v", error)
     return

@@ -260,15 +260,14 @@ check_tools_call_input_valid :: proc(
   }
 
   input_args := tools_call_req.arguments
-  // INFO: this should be validating the actual type, but, as odin
-  // doesn't yet have a lib for that (like zod) and I don't want to do it,
-  // each MCP server implementation should check that.
-  is_input_valid := mcp.validate_input_matches_input_schema(
-    input_args,
-    type_of(input_schema_properties),
-    required[:],
-  )
-  if !is_input_valid do return mcp.Error_Code.Invalid_Params
+
+  // validate input type (with real type from the tool)
+  is_input_valid_type := tool_entry.validate(input_args)
+  if !is_input_valid_type do return mcp.Error_Code.Invalid_Params
+
+  // validate required fields
+  is_required_ok := mcp.check_required(args = input_args, required = required[:])
+  if !is_required_ok do return mcp.Error_Code.Invalid_Params
 
   return nil
 }
@@ -325,6 +324,7 @@ add_tool :: proc(
   s: ^Server,
   info: mcp.Tool,
   handler: Tool_Handler,
+  input_validator: mcp.Tool_Input_Validator,
 ) -> Maybe(jsonrpc.Response_Error) {
   _, tool_already_exists := s.tools[info.name]
   if tool_already_exists {
@@ -342,8 +342,9 @@ add_tool :: proc(
   }
 
   s.tools[info.name] = {
-    info    = info,
-    handler = handler,
+    info     = info,
+    handler  = handler,
+    validate = input_validator,
   }
 
   fmt.eprintfln("Saved %q tool", info.name)

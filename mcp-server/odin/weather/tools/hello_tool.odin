@@ -24,7 +24,6 @@ hello_tool :: proc(
   mcp_sdk.Tools_Call_Response,
   mcp_sdk.Error_Code,
 ) {
-
   fmt.eprintfln("%+v", req)
   v, err := mcp_sdk.decode_and_require(input, Hello_Tool_Input, {"name", "age"})
   if err != nil {
