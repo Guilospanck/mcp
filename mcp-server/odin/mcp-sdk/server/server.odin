@@ -53,6 +53,8 @@ run_with_transport :: proc(
       continue
     }
 
+    fmt.eprintfln("CLIENT REQ:\n%+v", req)
+
     res := dispatch(server, req)
     if res == nil do continue
 
@@ -68,7 +70,8 @@ run_with_transport :: proc(
       continue
     }
 
-    fmt.eprintln("[OK] Sent response.")
+    fmt.eprintln("[OK] Sent response:\n")
+    fmt.eprintfln("%+v", res)
   }
 }
 

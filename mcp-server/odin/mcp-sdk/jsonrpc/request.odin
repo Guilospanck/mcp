@@ -66,27 +66,27 @@ parse_request :: proc(
 
   err := json.unmarshal(data, &req, json.DEFAULT_SPECIFICATION, allocator)
   if err != nil {
-    fmt.printfln("error while unmarshalling data.\nError: %v\nData: %q", err, data)
+    fmt.eprintfln("error while unmarshalling data.\nError: %v\nData: %q", err, data)
     return {}, err
   }
 
   if req.jsonrpc == "" {
-    fmt.println("missing required field [jsonrpc]")
+    fmt.eprintln("missing required field [jsonrpc]")
     return {}, Request_Parse_Error.Missing_JSONRPC_Version
   }
 
   if req.method == "" {
-    fmt.println("missing required field [method]")
+    fmt.eprintln("missing required field [method]")
     return {}, Request_Parse_Error.Missing_Method
   }
 
   if req.jsonrpc != JSONRPC_VERSION {
-    fmt.printfln("unsupported JSON-RPC version: %s", req.jsonrpc)
+    fmt.eprintfln("unsupported JSON-RPC version: %s", req.jsonrpc)
     return {}, Request_Parse_Error.Unsupported_JSONRPC_Version
   }
 
   if strings.starts_with(req.method, DISALLOWED_METHOD_PREFIX) {
-    fmt.printfln("method not allowed: %q", req.method)
+    fmt.eprintfln("method not allowed: %q", req.method)
     return {}, Request_Parse_Error.Method_Not_Allowed
   }
 

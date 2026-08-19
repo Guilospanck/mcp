@@ -82,6 +82,6 @@ Response_Error :: struct {
   message: string,
   // Optional
   // This value is defined by the server, like detailed error info or nested errors
-  data:    Maybe(json.Value),
+  data:    Maybe(json.Value) `json:"data,omitempty"`,
 }
 

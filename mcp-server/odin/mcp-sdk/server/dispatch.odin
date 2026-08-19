@@ -185,10 +185,10 @@ handle_notification :: proc(
 ) -> Maybe(jsonrpc.JSONRPC_Response) {
   #partial switch method {
   case mcp.Method.Notifications_Progress:
-    fmt.println("Need to implement 'notifications/progress'")
+    fmt.eprintln("Need to implement 'notifications/progress'")
     return nil
   case mcp.Method.Notifications_Cancelled:
-    fmt.println("Need to implement 'notifications/cancelled'")
+    fmt.eprintln("Need to implement 'notifications/cancelled'")
     return nil
   case:
     fmt.eprintfln("notification not known or malformed: %+v", method)
