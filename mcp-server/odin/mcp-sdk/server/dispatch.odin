@@ -261,10 +261,6 @@ check_tools_call_input_valid :: proc(
 
   input_args := tools_call_req.arguments
 
-  // validate input type (with real type from the tool)
-  is_input_valid_type := tool_entry.validate(input_args)
-  if !is_input_valid_type do return mcp.Error_Code.Invalid_Params
-
   // validate required fields
   is_required_ok := mcp.check_required(args = input_args, required = required[:])
   if !is_required_ok do return mcp.Error_Code.Invalid_Params
@@ -324,7 +320,6 @@ add_tool :: proc(
   s: ^Server,
   info: mcp.Tool,
   handler: Tool_Handler,
-  input_validator: mcp.Tool_Input_Validator,
 ) -> Maybe(jsonrpc.Response_Error) {
   _, tool_already_exists := s.tools[info.name]
   if tool_already_exists {
@@ -335,16 +330,14 @@ add_tool :: proc(
     }
   }
 
-
   // set the server capabilities if unset
   if s.capabilities.tools == nil {
     s.capabilities.tools = mcp.Tools_Capab{}
   }
 
   s.tools[info.name] = {
-    info     = info,
-    handler  = handler,
-    validate = input_validator,
+    info    = info,
+    handler = handler,
   }
 
   fmt.eprintfln("Saved %q tool", info.name)
@@ -377,5 +370,34 @@ params_to_value :: proc(p: jsonrpc.Request_Params) -> json.Value {
   case:
     return nil
   }
+}
+
+make_handler :: proc(
+  $T: typeid,
+  $inner: proc(
+    req: jsonrpc.JSONRPC_Request,
+    input: T,
+  ) -> (
+    mcp.Tools_Call_Response,
+    mcp.Error_Code,
+  ),
+) -> Tool_Handler {
+
+  fn :: proc(
+    req: jsonrpc.JSONRPC_Request,
+    input: json.Value,
+  ) -> (
+    mcp.Tools_Call_Response,
+    mcp.Error_Code,
+  ) {
+
+    v, err := mcp.decode_into_type(input, T)
+    if err != nil {
+      return {}, mcp.Error_Code.Invalid_Params
+    }
+    return inner(req, v)
+  }
+
+  return fn
 }
 

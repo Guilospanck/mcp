@@ -69,15 +69,6 @@ tools_call_validate :: proc(v: json.Value) -> (Tools_Call_Request, Error_Code) {
   return req, nil
 }
 
-Tool_Input_Validator :: #type proc(_: json.Value) -> bool
-
-make_input_validator :: proc($input_type: typeid) -> Tool_Input_Validator {
-  return proc(input: json.Value) -> bool {
-      _, err := decode_into_type(input, input_type)
-      return err == nil
-    }
-}
-
 // Decode a json.Value into a type T and validate that the
 // `require`d fields are present
 //

@@ -19,23 +19,19 @@ Hello_Tool_Output :: struct {
 
 hello_tool :: proc(
   req: jsonrpc.JSONRPC_Request,
-  input: json.Value,
+  input: Hello_Tool_Input,
 ) -> (
   mcp_sdk.Tools_Call_Response,
   mcp_sdk.Error_Code,
 ) {
   fmt.eprintfln("%+v", req)
-  v, err := mcp_sdk.decode_and_require(input, Hello_Tool_Input, {"name", "age"})
-  if err != nil {
-    return {}, mcp_sdk.Error_Code.Invalid_Params
-  }
 
-  fmt.eprintfln("HELLO: name=%s, age=%d, height=%d", v.name, v.age, v.height)
+  fmt.eprintfln("HELLO: name=%s, age=%d, height=%d", input.name, input.age, input.height)
 
   output: Hello_Tool_Output = {
-    name   = v.name,
-    age    = v.age,
-    height = v.height,
+    name   = input.name,
+    age    = input.age,
+    height = input.height,
   }
 
   output_bytes, output_marshal_err := json.marshal(output)
