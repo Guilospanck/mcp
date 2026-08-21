@@ -16,7 +16,11 @@ main :: proc() {
   error := mcp_sdk.add_tool(
     s = &server,
     info = tools.get_hello_tool_info(),
-    handler = mcp_sdk.make_handler(tools.Hello_Tool_Input, tools.hello_tool),
+    handler = mcp_sdk.make_handler(
+      tools.Hello_Tool_Input,
+      tools.Hello_Tool_Output,
+      tools.hello_tool,
+    ),
   )
   if error != nil {
     fmt.eprintfln("%+v", error)

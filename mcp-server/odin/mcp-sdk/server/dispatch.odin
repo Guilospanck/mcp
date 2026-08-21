@@ -373,10 +373,11 @@ params_to_value :: proc(p: jsonrpc.Request_Params) -> json.Value {
 }
 
 make_handler :: proc(
-  $T: typeid,
+  $I: typeid, // input compile-time type
+  $O: typeid, // output compile-time type
   $inner: proc(
     req: jsonrpc.JSONRPC_Request,
-    input: T,
+    input: I,
   ) -> (
     mcp.Tools_Call_Response,
     mcp.Error_Code,
@@ -390,12 +391,29 @@ make_handler :: proc(
     mcp.Tools_Call_Response,
     mcp.Error_Code,
   ) {
-
-    v, err := mcp.decode_into_type(input, T)
+    // validate input
+    v, err := mcp.decode_into_type(input, I)
     if err != nil {
       return {}, mcp.Error_Code.Invalid_Params
     }
-    return inner(req, v)
+
+    tool_res, tool_err := inner(req, v)
+    if tool_err != nil || O == mcp.No_Schema do return tool_res, tool_err
+
+    // From here onwards: output schema is defined
+    structured_content := tool_res.structured_content
+    // in that case, structured_content becomes REQUIRED
+    if structured_content == nil do return {}, mcp.Error_Code.Invalid_Params
+
+    sc := structured_content.(json.Value)
+
+    // validates that it follows the correct output schema
+    _, output_decode_err := mcp.decode_into_type(sc, O)
+    if output_decode_err != nil {
+      return {}, mcp.Error_Code.Invalid_Params
+    }
+
+    return tool_res, tool_err
   }
 
   return fn

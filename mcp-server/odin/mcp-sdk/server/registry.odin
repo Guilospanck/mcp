@@ -15,9 +15,11 @@ Tools_Call_Response :: mcp.Tools_Call_Response
 Text_Content :: mcp.Text_Content
 Media_Content :: mcp.Media_Content
 Content_Block :: mcp.Content_Block
+No_Schema :: mcp.No_Schema
 
 build_successfull_tools_call_response :: mcp.build_successfull_tools_call_response
 build_failed_tools_call_response :: mcp.build_failed_tools_call_response
+convert_schema_into_json_value :: mcp.convert_schema_into_json_value
 
 Tool :: mcp.Tool
 

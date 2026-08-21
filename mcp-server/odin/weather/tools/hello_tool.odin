@@ -34,16 +34,13 @@ hello_tool :: proc(
     height = input.height,
   }
 
-  output_bytes, output_marshal_err := json.marshal(output)
-  if output_marshal_err != nil {
-    fmt.eprintfln("[hello_tool]: error marshalling output: %v", output_marshal_err)
+  output_bytes, output_json_value, output_json_value_err := mcp_sdk.convert_schema_into_json_value(
+    output,
+  )
+  if output_json_value_err != nil {
+    fmt.eprintln("error converting ouput schema from [hello_tool] into bytes/json.Value")
     return {}, mcp_sdk.Error_Code.Invalid_Params
-  }
 
-  structured_content: json.Value
-  output_structured_err := json.unmarshal(output_bytes, &structured_content)
-  if output_structured_err != nil {
-    return {}, mcp_sdk.Error_Code.Invalid_Params
   }
 
   // For backwards compatibility, a tool that returns structured content SHOULD also return the serialized JSON in a TextContent block.
@@ -57,7 +54,7 @@ hello_tool :: proc(
 
   res := mcp_sdk.build_successfull_tools_call_response(
     content = content,
-    structured_content = structured_content,
+    structured_content = output_json_value,
   )
 
   return res, nil
