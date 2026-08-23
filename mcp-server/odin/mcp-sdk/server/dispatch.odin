@@ -7,7 +7,7 @@ import "core:fmt"
 import "core:slice"
 
 /*
-  Decision layer for the MCP server. It's a request-in, response-out.
+  Decision layer for the MCP server. It's a request-idn, response-out.
   Dispatch never stores anything (that's registry.odin responsibility)
 
   It handles things like:
@@ -231,38 +231,16 @@ check_tools_call_input_valid :: proc(
   _, is_no_param := input_schema.(mcp.Input_Schema_Empty_Object)
   if is_no_param do return nil
 
-  // check input schema is a json object
-  input_schema_obj, input_schema_obj_exists := input_schema.(json.Object)
-  if !input_schema_obj_exists do return mcp.Error_Code.Invalid_Params
-
-  // check whether the key "properties" exists in that object
-  input_schema_properties, input_schema_properties_exists := input_schema_obj["properties"]
-  if !input_schema_properties_exists do return mcp.Error_Code.Invalid_Params
-
-  // check whether the key "required" exists in that object
-  input_schema_required, input_schema_required_exists := input_schema_obj["required"]
-
-  if !input_schema_required_exists do return mcp.Error_Code.Invalid_Params
-
-  // fill in "required" array
-  required: [dynamic]string
-  input_schema_required_array, is_array := input_schema_required.(json.Array)
-
-  if is_array {
-    for elm in input_schema_required_array {
-      v, is_string := elm.(json.String)
-      if !is_string {
-        // The keys of properties MUST be string
-        return mcp.Error_Code.Invalid_Params
-      }
-      append(&required, string(v))
-    }
-  }
-
   input_args := tools_call_req.arguments
 
+  input_schema_with_properties, is_input_with_properties := input_schema.(mcp.Input_Schema_With_Properties)
+  if !is_input_with_properties do return mcp.Error_Code.Invalid_Params
+
   // validate required fields
-  is_required_ok := mcp.check_required(args = input_args, required = required[:])
+  is_required_ok := mcp.check_required(
+    args = input_args,
+    required = input_schema_with_properties.required[:],
+  )
   if !is_required_ok do return mcp.Error_Code.Invalid_Params
 
   return nil
@@ -281,7 +259,9 @@ tools_call :: proc(
   }
 
   // first validate that at least the shape of params is correct for a tools/call request.
-  tools_call_req, tools_call_error := mcp.tools_call_validate(params_to_value(req.params))
+  tools_call_req, tools_call_error := mcp.tools_call_validate(
+    jsonrpc_request_params_to_json_value(req.params),
+  )
   if tools_call_error != nil {
     return {}, tools_call_error
   }
@@ -361,7 +341,7 @@ build_server_discover_response :: proc(s: ^Server) -> mcp.Server_Discover_Respon
   }
 }
 
-params_to_value :: proc(p: jsonrpc.Request_Params) -> json.Value {
+jsonrpc_request_params_to_json_value :: proc(p: jsonrpc.Request_Params) -> json.Value {
   switch v in p {
   case json.Object:
     return v

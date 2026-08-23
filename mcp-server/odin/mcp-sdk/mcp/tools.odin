@@ -21,11 +21,18 @@ Input_Schema_Explicit_Empty_Object :: struct {
   additional_properties: bool `json:"additionalProperties"`,
 }
 
+Input_Schema_With_Properties :: struct {
+  using _:    Input_Schema_Empty_Object,
+  properties: json.Object,
+  required:   []string,
+}
+
 // input schema MUST always be present - is required
+// hence the #no_nil (otherwise it would allow Maybe(Input_Schema))
 Input_Schema :: union #no_nil {
   Input_Schema_Empty_Object,
   Input_Schema_Explicit_Empty_Object,
-  json.Object,
+  Input_Schema_With_Properties,
 }
 
 Tool :: struct {
@@ -112,12 +119,9 @@ build_failed_tools_call_response :: proc(
 }
 
 tools_call_validate :: proc(v: json.Value) -> (Tools_Call_Request, Error_Code) {
-  bytes, _ := json.marshal(v, {}, context.allocator)
+  req, err := decode_into_type(v, Tools_Call_Request)
+  if err != nil do return {}, err
 
-  req: Tools_Call_Request
-  if json.unmarshal(bytes, &req, json.DEFAULT_SPECIFICATION, context.allocator) != nil {
-    return {}, Error_Code.Invalid_Params
-  }
   if req.name == "" do return {}, Error_Code.Invalid_Params
   return req, nil
 }

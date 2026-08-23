@@ -1,3 +1,4 @@
+#+feature dynamic-literals
 package weather_tools
 
 import jsonrpc "../../mcp-sdk/jsonrpc"
@@ -72,27 +73,38 @@ get_hello_tool_info :: proc() -> mcp_sdk.Tool {
 }
 
 @(private = "file")
-get_hello_tool_schema :: proc() -> (input: json.Object, output: json.Object) {
-  input_schema := `{
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Your name",
-        },
-        "age": {
-          "type": "integer",
-          "description": "Your age",
-        },
-        "height": {
-          "type": "integer",
-          "description": "Your height",
-        }
-      },
-      "required": ["name", "age"]
-    }`
+get_hello_tool_schema :: proc(
+) -> (
+  input: mcp_sdk.Input_Schema_With_Properties,
+  output: json.Object,
+) {
 
-  _ = json.unmarshal(transmute([]byte)input_schema, &input)
+  //odinfmt:disable
+  properties := json.Object {
+    "name" = json.Object {
+      "type" = json.String("string"),
+      "description" = json.String("Your name"),
+    },
+    "age" =json.Object {
+      "type" = json.String("integer"),
+      "description" = json.String("Your age"),
+    },
+    "height" = json.Object {
+      "type" = json.String("integer"),
+      "description" = json.String("Your height"),
+    },
+  }
+  //odinfmt:enable
+
+  required := make([]string, 2)
+  required[0] = "name"
+  required[1] = "age"
+
+  input = mcp_sdk.Input_Schema_With_Properties {
+    type       = "object",
+    properties = properties,
+    required   = required,
+  }
 
   output_schema := `{
       "type": "object",

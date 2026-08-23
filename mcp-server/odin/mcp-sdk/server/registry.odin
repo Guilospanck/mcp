@@ -12,6 +12,7 @@ import "core:encoding/json"
 Server_Info :: mcp.Server_Info
 
 Tools_Call_Response :: mcp.Tools_Call_Response
+Input_Schema_With_Properties :: mcp.Input_Schema_With_Properties
 Text_Content :: mcp.Text_Content
 Media_Content :: mcp.Media_Content
 Content_Block :: mcp.Content_Block
