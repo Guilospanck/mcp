@@ -1,8 +1,6 @@
 package mcp
 
-import "core:encoding/base64"
 import "core:encoding/json"
-import "core:os"
 
 Tool_Annotations :: struct {
   title:            Maybe(string) `json:"title,omitempty"`,
@@ -58,76 +56,11 @@ Tools_Call_Request :: struct {
   arguments: json.Value `json:"arguments,omitempty"`,
 }
 
-tools_call_validate :: proc(v: json.Value) -> (Tools_Call_Request, Error_Code) {
-  bytes, _ := json.marshal(v, {}, context.allocator)
-
-  req: Tools_Call_Request
-  if json.unmarshal(bytes, &req, json.DEFAULT_SPECIFICATION, context.allocator) != nil {
-    return {}, Error_Code.Invalid_Params
-  }
-  if req.name == "" do return {}, Error_Code.Invalid_Params
-  return req, nil
-}
-
-// Decode a json.Value into a type T and validate that the
-// `require`d fields are present
-//
-decode_and_require :: proc(args: json.Value, $T: typeid, required: []string) -> (T, Error_Code) {
-  is_required_ok := check_required(args, required)
-  if !is_required_ok {
-    return {}, Error_Code.Invalid_Params
-  }
-
-  return decode_into_type(args, T)
-}
-
-// INFO:
-// typeid here needs to be $ (compile time) because of res: T
-decode_into_type :: proc(args: json.Value, $T: typeid) -> (T, Error_Code) {
-  bytes, _ := json.marshal(args)
-
-  res: T
-  err := json.unmarshal(bytes, &res)
-  if err != nil {
-    return {}, Error_Code.Invalid_Params
-  }
-
-  return res, nil
-}
-
-check_required :: proc(args: json.Value, required: []string) -> bool {
-  args_as_obj, is_args_obj := args.(json.Object)
-  if !is_args_obj {
-    return false
-  }
-
-  for req in required {
-    _, exists := args_as_obj[req]
-    if !exists {
-      return false
-    }
-  }
-
-  return true
-}
 
 Content_Type :: enum {
   Text,
   Image,
   Audio,
-}
-
-content_type_name :: proc(ct: Content_Type) -> string {
-  switch ct {
-  case Content_Type.Text:
-    return "text"
-  case Content_Type.Image:
-    return "image"
-  case Content_Type.Audio:
-    return "audio"
-  case:
-    return ""
-  }
 }
 
 Text_Content :: struct {
@@ -141,16 +74,17 @@ Media_Content :: struct {
   mime_type: string `json:"mimeType"`, // image/png, audio/wav etc
 }
 
-// Used for the Media_Content `data`
-encode_base64 :: proc(file_path: string, allocator := context.allocator) -> string {
-  bytes, _ := os.read_entire_file(file_path, allocator)
-  data, _ := base64.encode(bytes, allocator = allocator)
-  return data
-}
-
 Content_Block :: union {
   Text_Content,
   Media_Content,
+}
+
+Tools_Call_Response :: struct {
+  result_type:        string `json:"resultType"`,
+  content:            []Content_Block `json:"content"`,
+  // Required if the tool provides output_schema
+  structured_content: Maybe(json.Value) `json:"structuredContent"`,
+  is_error:           bool `json:"isError"`,
 }
 
 build_successfull_tools_call_response :: proc(
@@ -177,11 +111,27 @@ build_failed_tools_call_response :: proc(
   }
 }
 
-Tools_Call_Response :: struct {
-  result_type:        string `json:"resultType"`,
-  content:            []Content_Block `json:"content"`,
-  // Required if the tool provides output_schema
-  structured_content: Maybe(json.Value) `json:"structuredContent"`,
-  is_error:           bool `json:"isError"`,
+tools_call_validate :: proc(v: json.Value) -> (Tools_Call_Request, Error_Code) {
+  bytes, _ := json.marshal(v, {}, context.allocator)
+
+  req: Tools_Call_Request
+  if json.unmarshal(bytes, &req, json.DEFAULT_SPECIFICATION, context.allocator) != nil {
+    return {}, Error_Code.Invalid_Params
+  }
+  if req.name == "" do return {}, Error_Code.Invalid_Params
+  return req, nil
+}
+
+content_type_name :: proc(ct: Content_Type) -> string {
+  switch ct {
+  case Content_Type.Text:
+    return "text"
+  case Content_Type.Image:
+    return "image"
+  case Content_Type.Audio:
+    return "audio"
+  case:
+    return ""
+  }
 }
 
