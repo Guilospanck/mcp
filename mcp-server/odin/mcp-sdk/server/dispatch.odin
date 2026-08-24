@@ -412,12 +412,12 @@ resources_templates_list :: proc(
   mcp.Error_Code,
 ) {
 
-  params, err := mcp.decode_into_type(
+  // TODO: use params to check for next_cursor
+  _, err := mcp.decode_into_type(
     jsonrpc_request_params_to_json_value(req.params),
     mcp.Resources_Templates_List_Request,
   )
   if err != nil do return {}, err
-
 
   srv_resources_templates := s.resources_templates
 
