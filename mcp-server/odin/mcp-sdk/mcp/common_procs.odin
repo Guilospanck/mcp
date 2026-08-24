@@ -4,8 +4,6 @@ import "core:encoding/base64"
 import "core:encoding/json"
 import "core:os"
 
-No_Schema :: struct {}
-
 convert_schema_into_json_value :: proc(schema: any) -> ([]byte, json.Value, Error_Code) {
 
   schema_bytes, schema_marshal_err := json.marshal(schema)

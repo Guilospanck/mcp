@@ -165,6 +165,10 @@ handle_request :: proc(
     }
 
     return jsonrpc.create_result_response(data = data, id = jsonrpc.request_to_response_id(req.id))
+  case mcp.Method.Resources_List:
+    fmt.eprintln("RESOURCES LIST")
+    data := resources_list(s)
+    return jsonrpc.create_result_response(data = data, id = jsonrpc.request_to_response_id(req.id))
   case:
     fmt.eprintfln("known method not implemented yet: %+v", method)
     return nil
@@ -325,8 +329,41 @@ add_tool :: proc(
 }
 
 // Walk through the resources list in the server's registry
-resources_list :: proc(s: ^Server) -> jsonrpc.JSONRPC_Response {
-  unimplemented()
+resources_list :: proc(s: ^Server) -> mcp.Resources_List_Response {
+  srv_resources := s.resources
+
+  resources := make([]mcp.Resource, len(srv_resources))
+
+  i := 0
+  for _, res in srv_resources {
+    resources[i] = res.info
+    i += 1
+  }
+
+  return mcp.Resources_List_Response {
+    result_type = mcp.result_type_name(mcp.Result_Type.Complete),
+    resources   = resources,
+    // 3 days
+    ttl_ms      = 60 * 60 * 24 * 3 * 1000,
+    cache_scope = mcp.cache_scope_name(mcp.Cache_Scope.Public),
+  }
+}
+
+add_resource :: proc(s: ^Server, info: mcp.Resource) -> Maybe(jsonrpc.Response_Error) {
+
+  _, resource_already_exists := s.resources[info.uri]
+  if resource_already_exists do return nil
+
+  resources_capab := s.capabilities.resources
+  if resources_capab == nil {
+    s.capabilities.resources = mcp.Resources_Capab{}
+  }
+
+  s.resources[info.uri] = Resource_Entry {
+    info = info,
+  }
+
+  return nil
 }
 
 build_server_discover_response :: proc(s: ^Server) -> mcp.Server_Discover_Response {

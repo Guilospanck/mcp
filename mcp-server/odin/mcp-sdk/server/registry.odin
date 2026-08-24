@@ -23,6 +23,7 @@ build_failed_tools_call_response :: mcp.build_failed_tools_call_response
 convert_schema_into_json_value :: mcp.convert_schema_into_json_value
 
 Tool :: mcp.Tool
+Resource :: mcp.Resource
 
 Error_Code :: mcp.Error_Code
 decode_and_require :: mcp.decode_and_require
@@ -37,15 +38,24 @@ Tool_Handler :: #type proc(
 )
 
 Tool_Name :: string
-
 Tool_Entry :: struct {
   info:    mcp.Tool,
   handler: Tool_Handler,
 }
+Tools :: map[Tool_Name]Tool_Entry
+
+/**** RESOURCES ****/
+
+Resource_Entry :: struct {
+  info: mcp.Resource,
+  // handler: Resource_Handler,
+}
+Resources :: map[mcp.URI]Resource_Entry
 
 Server :: struct {
   info:         mcp.Server_Info,
   capabilities: mcp.Server_Capabilities,
-  tools:        map[Tool_Name]Tool_Entry,
+  tools:        Tools,
+  resources:    Resources,
 }
 

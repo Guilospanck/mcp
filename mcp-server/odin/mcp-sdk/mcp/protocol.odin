@@ -418,6 +418,13 @@ result_type_name :: proc(t: Result_Type) -> string {
   return ""
 }
 
+// Hint from the server indicating how long (in milliseconds) the client MAY
+// cache this response before re-fetching. Semantics are analogous to HTTP
+// Cache-Control max-age. If 0, the response SHOULD be considered immediately
+// stale; if positive, the client SHOULD consider the result fresh for this
+// many milliseconds after receiving the response.
+TTL_ms :: u64
+
 // Scope of a cached response, analogous to HTTP `Cache-Control: public` vs
 // `Cache-Control: private`.
 Cache_Scope :: enum {
@@ -441,24 +448,10 @@ cache_scope_name :: proc(s: Cache_Scope) -> string {
   return ""
 }
 
-// Hint from the server indicating how long (in milliseconds) the client MAY
-// cache this response before re-fetching. Semantics are analogous to HTTP
-// Cache-Control max-age. If 0, the response SHOULD be considered immediately
-// stale; if positive, the client SHOULD consider the result fresh for this
-// many milliseconds after receiving the response.
-TTL_ms :: u64
-
-Server_Discover_Response_Meta :: struct {
-  server_info: Maybe(Server_Info) `json:"io.modelcontextprotocol/serverInfo,omitempty"`,
-}
-
-Server_Discover_Response :: struct {
-  result_type:        string `json:"resultType"`,
-  supported_versions: []Protocol_Version `json:"supportedVersions"`,
-  capabilities:       Server_Capabilities,
-  meta:               Server_Discover_Response_Meta `json:"_meta"`,
-  ttl_ms:             Maybe(TTL_ms) `json:"ttlMs,omitempty"`,
-  cache_scope:        Maybe(string) `json:"cacheScope,omitempty"`,
+Cache_Response_Fields :: struct {
+  ttl_ms:      Maybe(TTL_ms) `json:"ttlMs,omitempty"`,
+  // TODO: when cache_scope, validate that's either "public" or "private"
+  cache_scope: Maybe(string) `json:"cacheScope,omitempty"`, // "public" or "private"
 }
 
 Theme :: enum {
@@ -481,8 +474,21 @@ Icon :: struct {
   src:       string `json:"src"`,
   mime_type: Maybe(string) `json:"mimeType,omitempty"`,
   sizes:     Maybe([]string) `json:"sizes,omitempty"`,
-  theme:     Maybe(string) `json:"theme,omitempty"`,
+  // TODO: when icon, validate that the them is either "light" or "dark"
+  theme:     Maybe(string) `json:"theme,omitempty"`, // "light" or "dark"
+}
+
+Server_Discover_Response_Meta :: struct {
+  server_info: Maybe(Server_Info) `json:"io.modelcontextprotocol/serverInfo,omitempty"`,
+}
+
+Server_Discover_Response :: struct {
+  result_type:        string `json:"resultType"`,
+  supported_versions: []Protocol_Version `json:"supportedVersions"`,
+  capabilities:       Server_Capabilities,
+  meta:               Server_Discover_Response_Meta `json:"_meta"`,
+  using _:            Cache_Response_Fields,
 }
 
 Meta :: map[string]json.Value
-
+No_Schema :: struct {}

@@ -53,8 +53,7 @@ Tools_List_Response :: struct {
   result_type: string `json:"resultType"`,
   tools:       []Tool `json:"tools"`,
   next_cursor: Maybe(string) `json:"nextCursor,omitempty"`,
-  ttl_ms:      Maybe(TTL_ms) `json:"ttlMs,omitempty"`,
-  cache_scope: Maybe(string) `json:"cacheScope,omitempty"`,
+  using _:     Cache_Response_Fields,
 }
 
 Tools_Call_Request :: struct {

@@ -27,6 +27,17 @@ main :: proc() {
     return
   }
 
+  // resources
+  my_resource := mcp_sdk.Resource {
+    uri         = "file:///project/src/main.rs",
+    name        = "main.rs",
+    title       = "Rust Software Application Main File",
+    description = "Primary application entry point",
+    mime_type   = "text/x-rust",
+  }
+
+  mcp_sdk.add_resource(s = &server, info = my_resource)
+
   mcp_sdk.run(&server, .stdio)
 }
 
