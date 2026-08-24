@@ -63,11 +63,14 @@ Resource_Entry :: struct {
 }
 Resources :: map[mcp.URI]Resource_Entry
 
+Resources_Templates :: map[mcp.URI]mcp.Resource_Template
+
 /**** SERVER ****/
 Server :: struct {
-  info:         mcp.Server_Info,
-  capabilities: mcp.Server_Capabilities,
-  tools:        Tools,
-  resources:    Resources,
+  info:                mcp.Server_Info,
+  capabilities:        mcp.Server_Capabilities,
+  tools:               Tools,
+  resources:           Resources,
+  resources_templates: Resources_Templates,
 }
 

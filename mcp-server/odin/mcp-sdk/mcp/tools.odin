@@ -52,7 +52,7 @@ Tool :: struct {
 Tools_List_Response :: struct {
   result_type: string `json:"resultType"`,
   tools:       []Tool `json:"tools"`,
-  next_cursor: Maybe(string) `json:"nextCursor,omitempty"`,
+  next_cursor: Maybe(Cursor) `json:"nextCursor,omitempty"`,
   using _:     Cache_Response_Fields,
 }
 

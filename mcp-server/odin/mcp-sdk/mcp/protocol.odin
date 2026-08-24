@@ -514,3 +514,6 @@ Annotations :: struct {
   priority:      Maybe(i64) `json:"priority,omitempty"`,
   last_modified: Maybe(string) `json:"lastModified,omitempty"`,
 }
+
+Cursor :: string
+

@@ -148,9 +148,11 @@ handle_request :: proc(
   case mcp.Method.Server_Discover:
     data := build_server_discover_response(s)
     return jsonrpc.create_result_response(data = data, id = jsonrpc.request_to_response_id(req.id))
+
   case mcp.Method.Tools_List:
     data := tools_list(s)
     return jsonrpc.create_result_response(data = data, id = jsonrpc.request_to_response_id(req.id))
+
   case mcp.Method.Tools_Call:
     data, err := tools_call(s, req)
     if err != nil {
@@ -165,11 +167,28 @@ handle_request :: proc(
     }
 
     return jsonrpc.create_result_response(data = data, id = jsonrpc.request_to_response_id(req.id))
+
   case mcp.Method.Resources_List:
     data := resources_list(s)
     return jsonrpc.create_result_response(data = data, id = jsonrpc.request_to_response_id(req.id))
+
   case mcp.Method.Resources_Read:
     data, err := resource_read(s, req)
+    if err != nil {
+      response_error := jsonrpc.Response_Error {
+        code    = mcp.error_code_number(err),
+        message = mcp.error_code_message(err),
+      }
+      return jsonrpc.create_error_response(
+        error = response_error,
+        id = jsonrpc.request_to_response_id(req.id),
+      )
+    }
+
+    return jsonrpc.create_result_response(data = data, id = jsonrpc.request_to_response_id(req.id))
+
+  case mcp.Method.Resources_Templates_List:
+    data, err := resources_templates_list(s, req)
     if err != nil {
       response_error := jsonrpc.Response_Error {
         code    = mcp.error_code_number(err),
@@ -382,6 +401,57 @@ add_resource :: proc(
   }
 
   fmt.eprintfln("Saved %q resource", info.uri)
+  return nil
+}
+
+resources_templates_list :: proc(
+  s: ^Server,
+  req: jsonrpc.JSONRPC_Request,
+) -> (
+  mcp.Resources_Templates_List_Response,
+  mcp.Error_Code,
+) {
+
+  params, err := mcp.decode_into_type(
+    jsonrpc_request_params_to_json_value(req.params),
+    mcp.Resources_Templates_List_Request,
+  )
+  if err != nil do return {}, err
+
+
+  srv_resources_templates := s.resources_templates
+
+  resources := make([]mcp.Resource_Template, len(srv_resources_templates))
+
+  i := 0
+  for _, res in srv_resources_templates {
+    resources[i] = res
+    i += 1
+  }
+
+  return mcp.Resources_Templates_List_Response {
+      result_type        = mcp.result_type_name(mcp.Result_Type.Complete),
+      resource_templates = resources,
+      // 3 days
+      ttl_ms             = 60 * 60 * 24 * 3 * 1000,
+      cache_scope        = mcp.cache_scope_name(mcp.Cache_Scope.Public),
+    }, nil
+}
+
+add_resource_template :: proc(
+  s: ^Server,
+  info: mcp.Resource_Template,
+) -> Maybe(jsonrpc.Response_Error) {
+  _, resource_already_exists := s.resources_templates[info.uri_template]
+  if resource_already_exists do return nil
+
+  resources_capab := s.capabilities.resources
+  if resources_capab == nil {
+    s.capabilities.resources = mcp.Resources_Capab{}
+  }
+
+  s.resources_templates[info.uri_template] = info
+  fmt.eprintfln("Saved %q resource template", info.uri_template)
   return nil
 }
 
