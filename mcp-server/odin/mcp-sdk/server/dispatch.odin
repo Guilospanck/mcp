@@ -166,9 +166,23 @@ handle_request :: proc(
 
     return jsonrpc.create_result_response(data = data, id = jsonrpc.request_to_response_id(req.id))
   case mcp.Method.Resources_List:
-    fmt.eprintln("RESOURCES LIST")
     data := resources_list(s)
     return jsonrpc.create_result_response(data = data, id = jsonrpc.request_to_response_id(req.id))
+  case mcp.Method.Resources_Read:
+    data, err := resource_read(s, req)
+    if err != nil {
+      response_error := jsonrpc.Response_Error {
+        code    = mcp.error_code_number(err),
+        message = mcp.error_code_message(err),
+      }
+      return jsonrpc.create_error_response(
+        error = response_error,
+        id = jsonrpc.request_to_response_id(req.id),
+      )
+    }
+
+    return jsonrpc.create_result_response(data = data, id = jsonrpc.request_to_response_id(req.id))
+
   case:
     fmt.eprintfln("known method not implemented yet: %+v", method)
     return nil
@@ -349,8 +363,11 @@ resources_list :: proc(s: ^Server) -> mcp.Resources_List_Response {
   }
 }
 
-add_resource :: proc(s: ^Server, info: mcp.Resource) -> Maybe(jsonrpc.Response_Error) {
-
+add_resource :: proc(
+  s: ^Server,
+  info: mcp.Resource,
+  handler: Resource_Handler,
+) -> Maybe(jsonrpc.Response_Error) {
   _, resource_already_exists := s.resources[info.uri]
   if resource_already_exists do return nil
 
@@ -360,10 +377,48 @@ add_resource :: proc(s: ^Server, info: mcp.Resource) -> Maybe(jsonrpc.Response_E
   }
 
   s.resources[info.uri] = Resource_Entry {
-    info = info,
+    info    = info,
+    handler = handler,
   }
 
+  fmt.eprintfln("Saved %q resource", info.uri)
   return nil
+}
+
+resource_read :: proc(
+  s: ^Server,
+  req: jsonrpc.JSONRPC_Request,
+) -> (
+  mcp.Resources_Read_Response,
+  mcp.Error_Code,
+) {
+  params, params_error := mcp.decode_into_type(
+    jsonrpc_request_params_to_json_value(req.params),
+    mcp.Resources_Read_Request,
+  )
+  if params_error != nil {
+    return {}, params_error
+  }
+
+  uri := params.uri
+
+  resource, exists := s.resources[uri]
+  if !exists {
+    return {}, mcp.Error_Code.Invalid_Params
+  }
+
+  contents, error := resource.handler(uri)
+  if error != nil {
+    return {}, mcp.Error_Code.Internal_Error
+  }
+
+  return mcp.Resources_Read_Response {
+      result_type = mcp.result_type_name(mcp.Result_Type.Complete),
+      contents    = contents,
+      // 3 days
+      ttl_ms      = 60 * 60 * 24 * 3 * 1000,
+      cache_scope = mcp.cache_scope_name(mcp.Cache_Scope.Public),
+    }, nil
 }
 
 build_server_discover_response :: proc(s: ^Server) -> mcp.Server_Discover_Response {
@@ -389,7 +444,7 @@ jsonrpc_request_params_to_json_value :: proc(p: jsonrpc.Request_Params) -> json.
   }
 }
 
-make_handler :: proc(
+make_tools_handler :: proc(
   $I: typeid, // input compile-time type
   $O: typeid, // output compile-time type
   $inner: proc(

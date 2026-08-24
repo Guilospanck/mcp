@@ -1,6 +1,7 @@
 package weather_mcp_server
 
 import mcp_sdk "../mcp-sdk/server"
+import resources "./resources"
 import tools "./tools"
 import "core:fmt"
 
@@ -13,30 +14,31 @@ main :: proc() {
     },
   )
 
-  error := mcp_sdk.add_tool(
+  // tools
+  hello_tool_err := mcp_sdk.add_tool(
     s = &server,
     info = tools.get_hello_tool_info(),
-    handler = mcp_sdk.make_handler(
+    handler = mcp_sdk.make_tools_handler(
       tools.Hello_Tool_Input,
       tools.Hello_Tool_Output,
       tools.hello_tool,
     ),
   )
-  if error != nil {
-    fmt.eprintfln("%+v", error)
+  if hello_tool_err != nil {
+    fmt.eprintfln("%+v", hello_tool_err)
     return
   }
 
   // resources
-  my_resource := mcp_sdk.Resource {
-    uri         = "file:///project/src/main.rs",
-    name        = "main.rs",
-    title       = "Rust Software Application Main File",
-    description = "Primary application entry point",
-    mime_type   = "text/x-rust",
+  hello_resource_err := mcp_sdk.add_resource(
+    s = &server,
+    info = resources.get_hello_resource(),
+    handler = resources.hello_resource_handler,
+  )
+  if hello_resource_err != nil {
+    fmt.eprintfln("%+v", hello_resource_err)
+    return
   }
-
-  mcp_sdk.add_resource(s = &server, info = my_resource)
 
   mcp_sdk.run(&server, .stdio)
 }

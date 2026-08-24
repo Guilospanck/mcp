@@ -17,10 +17,15 @@ Text_Content :: mcp.Text_Content
 Media_Content :: mcp.Media_Content
 Content_Block :: mcp.Content_Block
 No_Schema :: mcp.No_Schema
+URI :: mcp.URI
+Resources_Content :: mcp.Resources_Content
+Blob_Resource_Contents :: mcp.Blob_Resource_Contents
+Text_Resource_Contents :: mcp.Text_Resource_Contents
 
 build_successfull_tools_call_response :: mcp.build_successfull_tools_call_response
 build_failed_tools_call_response :: mcp.build_failed_tools_call_response
 convert_schema_into_json_value :: mcp.convert_schema_into_json_value
+encode_base64 :: mcp.encode_base64
 
 Tool :: mcp.Tool
 Resource :: mcp.Resource
@@ -45,13 +50,20 @@ Tool_Entry :: struct {
 Tools :: map[Tool_Name]Tool_Entry
 
 /**** RESOURCES ****/
-
+Resource_Handler :: #type proc(
+  uri: mcp.URI,
+  allocator := context.allocator,
+) -> (
+  []mcp.Resources_Content,
+  mcp.Error_Code,
+)
 Resource_Entry :: struct {
-  info: mcp.Resource,
-  // handler: Resource_Handler,
+  info:    mcp.Resource,
+  handler: Resource_Handler,
 }
 Resources :: map[mcp.URI]Resource_Entry
 
+/**** SERVER ****/
 Server :: struct {
   info:         mcp.Server_Info,
   capabilities: mcp.Server_Capabilities,

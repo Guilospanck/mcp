@@ -62,7 +62,6 @@ check_required :: proc(args: json.Value, required: []string) -> bool {
   return true
 }
 
-// Used for the Media_Content `data`
 encode_base64 :: proc(file_path: string, allocator := context.allocator) -> string {
   bytes, _ := os.read_entire_file(file_path, allocator)
   data, _ := base64.encode(bytes, allocator = allocator)

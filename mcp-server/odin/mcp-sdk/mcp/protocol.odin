@@ -492,3 +492,25 @@ Server_Discover_Response :: struct {
 
 Meta :: map[string]json.Value
 No_Schema :: struct {}
+
+Role :: enum {
+  User,
+  Assistant,
+}
+
+role_name :: proc(role: Role) -> string {
+  switch role {
+  case .User:
+    return "user"
+  case .Assistant:
+    return "assistant"
+  }
+
+  return ""
+}
+
+Annotations :: struct {
+  audience:      Maybe([]string) `json:"audience,omitempty"`, // role: either "user" or "assistant"
+  priority:      Maybe(i64) `json:"priority,omitempty"`,
+  last_modified: Maybe(string) `json:"lastModified,omitempty"`,
+}
