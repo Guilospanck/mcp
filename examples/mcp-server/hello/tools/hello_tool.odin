@@ -1,5 +1,5 @@
 #+feature dynamic-literals
-package weather_tools
+package hello_tools
 
 import jsonrpc "../../mcp-sdk/jsonrpc"
 import mcp_sdk "../../mcp-sdk/server"

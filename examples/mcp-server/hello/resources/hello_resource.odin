@@ -1,4 +1,4 @@
-package weather_resources
+package hello_resources
 
 import mcp_sdk "../../mcp-sdk/server"
 import "base:runtime"
