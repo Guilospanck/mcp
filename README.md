@@ -15,7 +15,7 @@ A host application creates and manages multiple clients, with each client having
 
 MCP is a *stateless* protocol, which means that every request carries all the information needed to process it (in the `_meta` field), so servers infer nothing from previous requests.
 
-> ![INFO]
+> [!INFO]
 > The implication of this is that an open connection, such as the STDIO process, is not a conversation or session. For those things, a client MUST pass an explicit identifier on each request.
 
 ## Message Patterns
