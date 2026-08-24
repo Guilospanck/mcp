@@ -1,6 +1,6 @@
 package hello_resources
 
-import mcp_sdk "../../mcp-sdk/server"
+import mcp_sdk "../../../../sdk/mcp"
 import "base:runtime"
 import "core:path/filepath"
 

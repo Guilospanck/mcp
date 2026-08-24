@@ -1,6 +1,6 @@
 package hello_mcp_server
 
-import mcp_sdk "../mcp-sdk/server"
+import mcp_sdk "../../../sdk/server"
 import resources "./resources"
 import tools "./tools"
 import "core:fmt"

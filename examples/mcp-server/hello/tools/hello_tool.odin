@@ -1,8 +1,8 @@
 #+feature dynamic-literals
 package hello_tools
 
-import jsonrpc "../../mcp-sdk/jsonrpc"
-import mcp_sdk "../../mcp-sdk/server"
+import jsonrpc "../../../../sdk/jsonrpc"
+import mcp_sdk "../../../../sdk/mcp"
 import "core:encoding/json"
 import "core:fmt"
 
