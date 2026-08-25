@@ -62,29 +62,6 @@ Tools_Call_Request :: struct {
   arguments: json.Value `json:"arguments,omitempty"`,
 }
 
-
-Content_Type :: enum {
-  Text,
-  Image,
-  Audio,
-}
-
-Text_Content :: struct {
-  type: string `json:"type"`, // "text"
-  text: string `json:"text"`,
-}
-
-Media_Content :: struct {
-  type:      string `json:"type"`, // "image" | "audio" etc
-  data:      string `json:"data"`, // base64
-  mime_type: string `json:"mimeType"`, // image/png, audio/wav etc
-}
-
-Content_Block :: union {
-  Text_Content,
-  Media_Content,
-}
-
 Tools_Call_Response :: struct {
   result_type:        string `json:"resultType"`,
   content:            []Content_Block `json:"content"`,

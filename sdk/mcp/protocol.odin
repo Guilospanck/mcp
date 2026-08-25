@@ -517,3 +517,27 @@ Annotations :: struct {
 
 Cursor :: string
 
+Content_Type :: enum {
+  Text,
+  Image,
+  Audio,
+}
+
+Text_Content :: struct {
+  type: string `json:"type"`, // "text"
+  text: string `json:"text"`,
+}
+
+Media_Content :: struct {
+  type:      string `json:"type"`, // "image" | "audio" etc
+  data:      string `json:"data"`, // base64
+  mime_type: string `json:"mimeType"`, // image/png, audio/wav etc
+}
+
+// TODO: include the rest of the contents
+Content_Block :: union {
+  Text_Content,
+  Media_Content,
+  // | ResourceLink
+  // | EmbeddedResource
+}
