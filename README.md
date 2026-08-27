@@ -16,9 +16,9 @@ MCP (Model Context Protocol) [version 2026-07-28](https://modelcontextprotocol.i
 - [x] `resources/list`
 - [x] `resources/templates/list`
 - [x] `resources/read`
+- [x] `prompts/list`
+- [x] `prompts/get`
 - [ ] `subscriptions/listen`
-- [ ] `prompts/list`
-- [ ] `prompts/get`
 - [ ] `completion/complete`
 - [ ] `elicitation/create`
 - [ ] `notifications/tools/list_changed`
