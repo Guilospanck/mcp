@@ -7,18 +7,19 @@ Hello_Prompt_Args :: struct {
   name: string,
 }
 
-get_hello_prompt :: proc() -> mcp_sdk.Prompt {
+get_hello_prompt :: proc(allocator := context.allocator) -> mcp_sdk.Prompt {
+  arguments := make([]mcp_sdk.Prompt_Arguments, 1, allocator)
+  arguments[0] = mcp_sdk.Prompt_Arguments {
+    name        = "name",
+    description = "The name to say hello to",
+    required    = true,
+  }
+
   return mcp_sdk.Prompt {
     name = "hello_prompt",
     title = "Hello prompt",
     description = "This is a hello prompt",
-    arguments = []mcp_sdk.Prompt_Arguments {
-      mcp_sdk.Prompt_Arguments {
-        name = "name",
-        description = "The name to say hello to",
-        required = true,
-      },
-    },
+    arguments = arguments,
   }
 }
 
