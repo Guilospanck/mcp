@@ -29,6 +29,7 @@ encode_base64 :: mcp.encode_base64
 
 Tool :: mcp.Tool
 Resource :: mcp.Resource
+Prompt :: mcp.Prompt
 
 Error_Code :: mcp.Error_Code
 decode_and_require :: mcp.decode_and_require
@@ -65,6 +66,25 @@ Resources :: map[mcp.URI]Resource_Entry
 
 Resources_Templates :: map[mcp.URI]mcp.Resource_Template
 
+
+/**** PROMPTS ****/
+Prompt_Name :: string
+
+Prompt_Handler :: #type proc(
+  args: json.Value,
+  allocator := context.allocator,
+) -> (
+  []mcp.Prompt_Message,
+  mcp.Error_Code,
+)
+
+Prompt_Entry :: struct {
+  info:          mcp.Prompt,
+  handler:       Prompt_Handler,
+  required_args: []string,
+}
+Prompts :: map[Prompt_Name]Prompt_Entry
+
 /**** SERVER ****/
 Server :: struct {
   info:                mcp.Server_Info,
@@ -72,5 +92,6 @@ Server :: struct {
   tools:               Tools,
   resources:           Resources,
   resources_templates: Resources_Templates,
+  prompts:             Prompts,
 }
 

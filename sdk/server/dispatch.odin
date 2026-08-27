@@ -143,6 +143,7 @@ handle_request :: proc(
   s: ^Server,
 ) -> Maybe(jsonrpc.JSONRPC_Response) {
 
+  // TODO: extract the way we handle requests into a common proc
   // TODO: remove #partial once we have all methods implemented
   #partial switch method {
   case mcp.Method.Server_Discover:
@@ -189,6 +190,36 @@ handle_request :: proc(
 
   case mcp.Method.Resources_Templates_List:
     data, err := resources_templates_list(s, req)
+    if err != nil {
+      response_error := jsonrpc.Response_Error {
+        code    = mcp.error_code_number(err),
+        message = mcp.error_code_message(err),
+      }
+      return jsonrpc.create_error_response(
+        error = response_error,
+        id = jsonrpc.request_to_response_id(req.id),
+      )
+    }
+
+    return jsonrpc.create_result_response(data = data, id = jsonrpc.request_to_response_id(req.id))
+
+  case mcp.Method.Prompts_List:
+    data, err := prompts_list(s, req)
+    if err != nil {
+      response_error := jsonrpc.Response_Error {
+        code    = mcp.error_code_number(err),
+        message = mcp.error_code_message(err),
+      }
+      return jsonrpc.create_error_response(
+        error = response_error,
+        id = jsonrpc.request_to_response_id(req.id),
+      )
+    }
+
+    return jsonrpc.create_result_response(data = data, id = jsonrpc.request_to_response_id(req.id))
+
+  case mcp.Method.Prompts_Get:
+    data, err := prompt_read(s, req)
     if err != nil {
       response_error := jsonrpc.Response_Error {
         code    = mcp.error_code_number(err),
@@ -491,6 +522,117 @@ resource_read :: proc(
     }, nil
 }
 
+add_prompt :: proc(
+  s: ^Server,
+  prompt: mcp.Prompt,
+  handler: Prompt_Handler,
+  required_args: []string,
+) -> Maybe(mcp.Error_Code) {
+  _, prompt_exist := s.prompts[prompt.name]
+  if prompt_exist do return nil
+
+  if s.capabilities.prompts == nil {
+    s.capabilities.prompts = mcp.Prompts_Capab{}
+  }
+
+  s.prompts[prompt.name] = Prompt_Entry {
+    info          = prompt,
+    handler       = handler,
+    required_args = required_args,
+  }
+
+  fmt.eprintfln("Saved %q prompt", prompt.name)
+  return nil
+}
+
+prompts_list :: proc(
+  s: ^Server,
+  req: jsonrpc.JSONRPC_Request,
+) -> (
+  mcp.Prompts_List_Response,
+  mcp.Error_Code,
+) {
+  // TODO: do something if "cursor"
+  _, params_error := mcp.decode_into_type(
+    jsonrpc_request_params_to_json_value(req.params),
+    mcp.Resources_Read_Request,
+  )
+  if params_error != nil {
+    return {}, params_error
+  }
+
+  srv_prompts := s.prompts
+
+  prompts := make([]mcp.Prompt, len(srv_prompts))
+
+  i := 0
+  for _, res in srv_prompts {
+    prompts[i] = res.info
+    i += 1
+  }
+
+  return mcp.Prompts_List_Response {
+      result_type = mcp.result_type_name(mcp.Result_Type.Complete),
+      prompts     = prompts,
+      // 3 days
+      ttl_ms      = 60 * 60 * 24 * 3 * 1000,
+      cache_scope = mcp.cache_scope_name(mcp.Cache_Scope.Public),
+    }, nil
+}
+
+prompt_read :: proc(
+  s: ^Server,
+  req: jsonrpc.JSONRPC_Request,
+) -> (
+  mcp.Prompt_Get_Result,
+  mcp.Error_Code,
+) {
+  params, params_error := mcp.decode_into_type(
+    jsonrpc_request_params_to_json_value(req.params),
+    mcp.Prompt_Get_Request,
+  )
+  if params_error != nil {
+    return {}, params_error
+  }
+
+  name := params.name
+  args := params.arguments
+
+  prompt, exists := s.prompts[name]
+  if !exists {
+    return {}, mcp.Error_Code.Invalid_Params
+  }
+
+  // validate args given the `required` info
+  required := prompt.required_args
+  if len(required) > 0 && args == nil {
+    return {}, mcp.Error_Code.Invalid_Params
+  }
+
+  _, args_value, convert_args_err := convert_schema_into_json_value(args)
+  if convert_args_err != nil {
+    return {}, mcp.Error_Code.Invalid_Params
+  }
+
+  if !mcp.check_required(args_value, required) {
+    return {}, mcp.Error_Code.Invalid_Params
+  }
+
+
+  prompt_messages, error := prompt.handler(args_value)
+  if error != nil {
+    return {}, mcp.Error_Code.Internal_Error
+  }
+
+  return mcp.Prompt_Get_Result {
+      result_type = mcp.result_type_name(mcp.Result_Type.Complete),
+      messages = prompt_messages,
+      description = prompt.info.description,
+    },
+    nil
+}
+
+
 build_server_discover_response :: proc(s: ^Server) -> mcp.Server_Discover_Response {
   return mcp.Server_Discover_Response {
     result_type = mcp.result_type_name(mcp.Result_Type.Complete),
@@ -556,6 +698,26 @@ make_tools_handler :: proc(
     }
 
     return tool_res, tool_err
+  }
+
+  return fn
+}
+
+make_prompts_handler :: proc(
+  $T: typeid,
+  $inner: proc(args: T, allocator := context.allocator) -> ([]mcp.Prompt_Message, mcp.Error_Code),
+) -> Prompt_Handler {
+  fn :: proc(
+    args: json.Value,
+    allocator := context.allocator,
+  ) -> (
+    []mcp.Prompt_Message,
+    mcp.Error_Code,
+  ) {
+    args_t, error := mcp.decode_into_type(args, T)
+    if error != nil do return {}, error
+
+    return inner(args_t, allocator)
   }
 
   return fn

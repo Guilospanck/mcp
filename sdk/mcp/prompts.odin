@@ -1,21 +1,28 @@
 package mcp
 
 import "core:encoding/json"
-Prompt_Arguments :: map[string]string
 
 Input_Responses :: map[string]json.Value
 Input_Requests :: map[string]json.Value
+
+Prompt_Arguments :: struct {
+  name:        string `json:"name"`,
+  title:       Maybe(string) `json:"title,omitempty"`,
+  description: Maybe(string) `json:"description,omitempty"`,
+  required:    Maybe(bool) `json:"required,omitempty"`,
+}
 
 Prompt :: struct {
   name:        string `json:"name"`,
   title:       Maybe(string) `json:"title,omitempty"`,
   description: Maybe(string) `json:"description,omitempty"`,
   icons:       Maybe([]Icon) `json:"icons,omitempty"`,
+  arguments:   Maybe([]Prompt_Arguments) `json:"arguments,omitempty"`,
   meta:        Maybe(Meta) `json:"_meta,omitempty"`,
 }
 
 Prompt_Message :: struct {
-  role:    Role `json:"role"`,
+  role:    string `json:"role"`, // see `Role`
   content: Content_Block `json:"content"`,
 }
 
@@ -37,7 +44,7 @@ Prompt_Get_Request :: struct {
   input_responses: Maybe(Input_Responses) `json:"inputResponses,omitempty"`,
   request_state:   Maybe(string) `json:"requestState,omitempty"`,
   name:            string `json:"name"`,
-  arguments:       Maybe(Prompt_Arguments) `json:"arguments,omitempty"`,
+  arguments:       Maybe(map[string]string) `json:"arguments,omitempty"`,
 }
 
 Prompt_Get_Result :: struct {

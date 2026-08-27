@@ -1,6 +1,7 @@
 package hello_mcp_server
 
 import mcp_sdk "../../../sdk/server"
+import prompts "./prompts"
 import resources "./resources"
 import tools "./tools"
 import "core:fmt"
@@ -37,6 +38,23 @@ main :: proc() {
   )
   if hello_resource_err != nil {
     fmt.eprintfln("%+v", hello_resource_err)
+    return
+  }
+
+  // prompts
+  hello_prompt_info := prompts.get_hello_prompt()
+  hello_prompt_handler := mcp_sdk.make_prompts_handler(
+    T = prompts.Hello_Prompt_Args,
+    inner = prompts.hello_prompt_handler,
+  )
+  hello_prompt_err := mcp_sdk.add_prompt(
+    s = &server,
+    prompt = hello_prompt_info,
+    handler = hello_prompt_handler,
+    required_args = {"name"},
+  )
+  if hello_prompt_err != nil {
+    fmt.eprintfln("%+v", hello_prompt_err)
     return
   }
 
