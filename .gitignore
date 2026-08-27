@@ -1,5 +1,11 @@
 *.bin
 **/tmp
 
+# Debug symbol bundles (macOS -debug builds)
+*.dSYM/
+
+# Generated MCP server binary (built by `just build`)
+examples/mcp-server/hello/hello
+
 # Remove weather bin file
 mcp-server/odin/weather/weather

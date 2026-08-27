@@ -1,7 +1,13 @@
 package hello_prompts
 
 import mcp_sdk "../../../../sdk/mcp"
+import "base:runtime"
 import "core:fmt"
+import "core:path/filepath"
+
+// dir of this .odin file, resolved at compile time
+@(private = "file")
+DIR :: #directory
 
 Hello_Prompt_Args :: struct {
   name: string,
@@ -45,12 +51,19 @@ hello_prompt_handler :: proc(
   }
   append(&messages, m2)
 
+
+  image_full_path, image_full_path_err := filepath.join({DIR, "./rick_astley.jpg"}, allocator)
+  if image_full_path_err != runtime.Allocator_Error.None {
+    return {}, mcp_sdk.Error_Code.Internal_Error
+  }
+
+
   m3 := mcp_sdk.Prompt_Message {
     role = mcp_sdk.role_name(mcp_sdk.Role.User),
     content = mcp_sdk.Media_Content {
       type = "image",
-      data = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
-      mime_type = "image/png",
+      data = mcp_sdk.encode_base64(image_full_path, allocator),
+      mime_type = "image/jpeg",
     },
   }
   append(&messages, m3)

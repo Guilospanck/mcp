@@ -618,7 +618,6 @@ prompt_read :: proc(
     return {}, mcp.Error_Code.Invalid_Params
   }
 
-
   prompt_messages, error := prompt.handler(args_value)
   if error != nil {
     return {}, mcp.Error_Code.Internal_Error
