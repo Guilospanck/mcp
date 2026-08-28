@@ -1,5 +1,7 @@
 # MCP (2026-07-28)
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
 MCP (Model Context Protocol) [version 2026-07-28](https://modelcontextprotocol.io/docs/2026-07-28/getting-started/intro) implementation in Odin.
 
 > [!NOTE]  
@@ -39,4 +41,8 @@ There's an example implementation of a [hello MCP server](./examples/mcp-server/
 ## Docs
 
 Check the [docs](./docs/mcp_2026-07-28.md) for a distillation of the protocol with what I wrote while going through their website documentation.
+
+## License
+
+[MIT](./LICENSE)
 
