@@ -2,6 +2,7 @@ package server
 
 import jsonrpc "../jsonrpc"
 import mcp "../mcp"
+import "base:intrinsics"
 import "core:encoding/json"
 import "core:fmt"
 import "core:slice"
@@ -143,95 +144,31 @@ handle_request :: proc(
   s: ^Server,
 ) -> Maybe(jsonrpc.JSONRPC_Response) {
 
-  // TODO: extract the way we handle requests into a common proc
   // TODO: remove #partial once we have all methods implemented
   #partial switch method {
   case mcp.Method.Server_Discover:
-    data := build_server_discover_response(s)
-    return jsonrpc.create_result_response(data = data, id = jsonrpc.request_to_response_id(req.id))
+    return handle_req_response(req.id, build_server_discover_response(s))
 
   case mcp.Method.Tools_List:
-    data := tools_list(s)
-    return jsonrpc.create_result_response(data = data, id = jsonrpc.request_to_response_id(req.id))
+    return handle_req_response(req.id, tools_list(s))
 
   case mcp.Method.Tools_Call:
-    data, err := tools_call(s, req)
-    if err != nil {
-      response_error := jsonrpc.Response_Error {
-        code    = mcp.error_code_number(err),
-        message = mcp.error_code_message(err),
-      }
-      return jsonrpc.create_error_response(
-        error = response_error,
-        id = jsonrpc.request_to_response_id(req.id),
-      )
-    }
-
-    return jsonrpc.create_result_response(data = data, id = jsonrpc.request_to_response_id(req.id))
+    return handle_req_response(req.id, tools_call(s, req))
 
   case mcp.Method.Resources_List:
-    data := resources_list(s)
-    return jsonrpc.create_result_response(data = data, id = jsonrpc.request_to_response_id(req.id))
+    return handle_req_response(req.id, resources_list(s))
 
   case mcp.Method.Resources_Read:
-    data, err := resource_read(s, req)
-    if err != nil {
-      response_error := jsonrpc.Response_Error {
-        code    = mcp.error_code_number(err),
-        message = mcp.error_code_message(err),
-      }
-      return jsonrpc.create_error_response(
-        error = response_error,
-        id = jsonrpc.request_to_response_id(req.id),
-      )
-    }
-
-    return jsonrpc.create_result_response(data = data, id = jsonrpc.request_to_response_id(req.id))
+    return handle_req_response(req.id, resource_read(s, req))
 
   case mcp.Method.Resources_Templates_List:
-    data, err := resources_templates_list(s, req)
-    if err != nil {
-      response_error := jsonrpc.Response_Error {
-        code    = mcp.error_code_number(err),
-        message = mcp.error_code_message(err),
-      }
-      return jsonrpc.create_error_response(
-        error = response_error,
-        id = jsonrpc.request_to_response_id(req.id),
-      )
-    }
-
-    return jsonrpc.create_result_response(data = data, id = jsonrpc.request_to_response_id(req.id))
+    return handle_req_response(req.id, resources_templates_list(s, req))
 
   case mcp.Method.Prompts_List:
-    data, err := prompts_list(s, req)
-    if err != nil {
-      response_error := jsonrpc.Response_Error {
-        code    = mcp.error_code_number(err),
-        message = mcp.error_code_message(err),
-      }
-      return jsonrpc.create_error_response(
-        error = response_error,
-        id = jsonrpc.request_to_response_id(req.id),
-      )
-    }
-
-    return jsonrpc.create_result_response(data = data, id = jsonrpc.request_to_response_id(req.id))
+    return handle_req_response(req.id, prompts_list(s, req))
 
   case mcp.Method.Prompts_Get:
-    data, err := prompt_read(s, req)
-    if err != nil {
-      response_error := jsonrpc.Response_Error {
-        code    = mcp.error_code_number(err),
-        message = mcp.error_code_message(err),
-      }
-      return jsonrpc.create_error_response(
-        error = response_error,
-        id = jsonrpc.request_to_response_id(req.id),
-      )
-    }
-
-    return jsonrpc.create_result_response(data = data, id = jsonrpc.request_to_response_id(req.id))
+    return handle_req_response(req.id, prompt_read(s, req))
 
   case:
     fmt.eprintfln("known method not implemented yet: %+v", method)
@@ -265,7 +202,7 @@ handle_notification :: proc(
 }
 
 // Walk through the tools list in the server's registry
-tools_list :: proc(s: ^Server) -> mcp.Tools_List_Response {
+tools_list :: proc(s: ^Server) -> (mcp.Tools_List_Response, mcp.Error_Code) {
   tools := make([]mcp.Tool, len(s.tools), context.allocator)
 
   i := 0
@@ -278,12 +215,12 @@ tools_list :: proc(s: ^Server) -> mcp.Tools_List_Response {
   slice.sort_by(tools, proc(a, b: mcp.Tool) -> bool {return a.name < b.name})
 
   return mcp.Tools_List_Response {
-    result_type = mcp.result_type_name(mcp.Result_Type.Complete),
-    tools       = tools,
-    // 3 days
-    ttl_ms      = 60 * 60 * 24 * 3 * 1000,
-    cache_scope = mcp.cache_scope_name(mcp.Cache_Scope.Public),
-  }
+      result_type = mcp.result_type_name(mcp.Result_Type.Complete),
+      tools       = tools,
+      // 3 days
+      ttl_ms      = 60 * 60 * 24 * 3 * 1000,
+      cache_scope = mcp.cache_scope_name(mcp.Cache_Scope.Public),
+    }, nil
 }
 
 check_tools_call_input_valid :: proc(
@@ -393,7 +330,7 @@ add_tool :: proc(
 }
 
 // Walk through the resources list in the server's registry
-resources_list :: proc(s: ^Server) -> mcp.Resources_List_Response {
+resources_list :: proc(s: ^Server) -> (mcp.Resources_List_Response, mcp.Error_Code) {
   srv_resources := s.resources
 
   resources := make([]mcp.Resource, len(srv_resources))
@@ -405,12 +342,12 @@ resources_list :: proc(s: ^Server) -> mcp.Resources_List_Response {
   }
 
   return mcp.Resources_List_Response {
-    result_type = mcp.result_type_name(mcp.Result_Type.Complete),
-    resources   = resources,
-    // 3 days
-    ttl_ms      = 60 * 60 * 24 * 3 * 1000,
-    cache_scope = mcp.cache_scope_name(mcp.Cache_Scope.Public),
-  }
+      result_type = mcp.result_type_name(mcp.Result_Type.Complete),
+      resources   = resources,
+      // 3 days
+      ttl_ms      = 60 * 60 * 24 * 3 * 1000,
+      cache_scope = mcp.cache_scope_name(mcp.Cache_Scope.Public),
+    }, nil
 }
 
 add_resource :: proc(
@@ -632,16 +569,21 @@ prompt_read :: proc(
 }
 
 
-build_server_discover_response :: proc(s: ^Server) -> mcp.Server_Discover_Response {
+build_server_discover_response :: proc(
+  s: ^Server,
+) -> (
+  mcp.Server_Discover_Response,
+  mcp.Error_Code,
+) {
   return mcp.Server_Discover_Response {
-    result_type = mcp.result_type_name(mcp.Result_Type.Complete),
-    supported_versions = mcp.SUPPORTED_VERSIONS,
-    capabilities = s.capabilities,
-    meta = mcp.Server_Discover_Response_Meta{server_info = s.info},
-    // 3 days
-    ttl_ms = 60 * 60 * 24 * 3 * 1000,
-    cache_scope = mcp.cache_scope_name(mcp.Cache_Scope.Public),
-  }
+      result_type = mcp.result_type_name(mcp.Result_Type.Complete),
+      supported_versions = mcp.SUPPORTED_VERSIONS,
+      capabilities = s.capabilities,
+      meta = mcp.Server_Discover_Response_Meta{server_info = s.info},
+      // 3 days
+      ttl_ms = 60 * 60 * 24 * 3 * 1000,
+      cache_scope = mcp.cache_scope_name(mcp.Cache_Scope.Public),
+    }, nil
 }
 
 jsonrpc_request_params_to_json_value :: proc(p: jsonrpc.Request_Params) -> json.Value {
@@ -665,7 +607,7 @@ make_tools_handler :: proc(
     mcp.Tools_Call_Response,
     mcp.Error_Code,
   ),
-) -> Tool_Handler {
+) -> Tool_Handler where intrinsics.type_is_struct(I) {
 
   fn :: proc(
     req: jsonrpc.JSONRPC_Request,
@@ -720,5 +662,24 @@ make_prompts_handler :: proc(
   }
 
   return fn
+}
+
+handle_req_response :: proc(
+  req_id: jsonrpc.Request_Id,
+  data: any,
+  err: mcp.Error_Code,
+) -> jsonrpc.JSONRPC_Response {
+  if err != nil {
+    response_error := jsonrpc.Response_Error {
+      code    = mcp.error_code_number(err),
+      message = mcp.error_code_message(err),
+    }
+    return jsonrpc.create_error_response(
+      error = response_error,
+      id = jsonrpc.request_to_response_id(req_id),
+    )
+  }
+
+  return jsonrpc.create_result_response(data = data, id = jsonrpc.request_to_response_id(req_id))
 }
 
