@@ -147,7 +147,7 @@ handle_request :: proc(
   // TODO: remove #partial once we have all methods implemented
   #partial switch method {
   case mcp.Method.Server_Discover:
-    return handle_req_response(req.id, build_server_discover_response(s))
+    return handle_req_response(req.id, server_discover(s))
 
   case mcp.Method.Tools_List:
     return handle_req_response(req.id, tools_list(s))
@@ -169,6 +169,12 @@ handle_request :: proc(
 
   case mcp.Method.Prompts_Get:
     return handle_req_response(req.id, prompt_read(s, req))
+
+  case mcp.Method.Subscriptions_Listen:
+    subscriptions_listen(s, req)
+    // TODO: return this MUST be different from the other
+    // handle_req_response because we don't send an `id`
+    return nil
 
   case:
     fmt.eprintfln("known method not implemented yet: %+v", method)
@@ -459,6 +465,9 @@ resource_read :: proc(
     }, nil
 }
 
+// TODO:
+// Whenever this changes, check the list of subscriptions and then update the person
+// do the same for resources and prompts
 add_prompt :: proc(
   s: ^Server,
   prompt: mcp.Prompt,
@@ -568,13 +577,92 @@ prompt_read :: proc(
     nil
 }
 
-
-build_server_discover_response :: proc(
+@(private = "file")
+decide_which_subscription_listen_to_accept :: proc(
   s: ^Server,
+  subscription_id: Subscription_Id,
+  filters: mcp.Subscription_Filter,
+) -> mcp.Error_Code {
+
+  server_allows_any_subscription := false
+
+  // tools list changed caps
+  if v, ok := filters.tools_list_changed.?; ok && v {
+    tools_capab, has_tools_capab := s.capabilities.tools.(mcp.Tools_Capab)
+
+    if has_tools_capab && (tools_capab.list_changed.? or_else false) {
+      server_allows_any_subscription = true
+      append(&s.tools_list_changed_subscriptions, subscription_id)
+    }
+  }
+
+  // prompts list changed caps
+  if v, ok := filters.prompts_list_changed.?; ok && v {
+    prompts_capab, has_prompts_capab := s.capabilities.prompts.(mcp.Prompts_Capab)
+
+    if has_prompts_capab && (prompts_capab.list_changed.? or_else false) {
+      server_allows_any_subscription = true
+      append(&s.prompts_list_changed_subscriptions, subscription_id)
+    }
+  }
+
+  resources_capab, has_resources_capab := s.capabilities.resources.(mcp.Resources_Capab)
+
+  // resources list changed caps
+  if v, ok := filters.resources_list_changed.?; ok && v {
+    if has_resources_capab && (resources_capab.list_changed.? or_else false) {
+      server_allows_any_subscription = true
+      append(&s.resources_list_changed_subscriptions, subscription_id)
+    }
+  }
+
+  // resources subscribe caps
+  if v, ok := filters.resource_subscriptions.?; ok && len(v) > 0 {
+    if has_resources_capab && (resources_capab.subscribe.? or_else false) {
+      server_allows_any_subscription = true
+      for uri in v {
+        s.resources_subscriptions[uri] = subscription_id
+      }
+    }
+  }
+
+  if !server_allows_any_subscription do return mcp.Error_Code.Method_Not_Found
+
+  return nil
+}
+
+// TODO:
+subscriptions_listen :: proc(
+  s: ^Server,
+  req: jsonrpc.JSONRPC_Request,
 ) -> (
-  mcp.Server_Discover_Response,
+  mcp.Prompts_List_Response,
   mcp.Error_Code,
 ) {
+  params, params_error := mcp.decode_into_type(
+    jsonrpc_request_params_to_json_value(req.params),
+    mcp.Subscriptions_Listen_Request,
+  )
+  if params_error != nil {
+    return {}, params_error
+  }
+
+  subscription_id := req.id
+  filters := params.notifications
+
+  // Decide which - if any - subscriptions this server is able
+  // to acknowledge
+  err_capabilities := decide_which_subscription_listen_to_accept(s, subscription_id, filters)
+  if err_capabilities != nil do return {}, err_capabilities
+
+  // send acknowledgement of the filters that we're gonna accept
+
+  return {}, nil
+
+}
+
+
+server_discover :: proc(s: ^Server) -> (mcp.Server_Discover_Response, mcp.Error_Code) {
   return mcp.Server_Discover_Response {
       result_type = mcp.result_type_name(mcp.Result_Type.Complete),
       supported_versions = mcp.SUPPORTED_VERSIONS,

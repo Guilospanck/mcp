@@ -1,6 +1,7 @@
 package server
 
 import jsonrpc "../jsonrpc"
+import mcp "../mcp"
 import transport_layer "../transport"
 import "core:encoding/json"
 import "core:fmt"
@@ -11,7 +12,18 @@ Server_Transport :: enum {
 }
 
 create_server :: proc(info: Server_Info, allocator := context.allocator) -> Server {
-  return Server{info = info, tools = make(map[string]Tool_Entry, allocator)}
+  return Server {
+    info = info,
+    capabilities = mcp.Server_Capabilities{},
+    tools = make(Tools, allocator),
+    resources = make(Resources, allocator),
+    prompts = make(Prompts, allocator),
+    resources_templates = make(Resources_Templates, allocator),
+    resources_list_changed_subscriptions = make(Subscriptions, allocator),
+    tools_list_changed_subscriptions = make(Subscriptions, allocator),
+    prompts_list_changed_subscriptions = make(Subscriptions, allocator),
+    resources_subscriptions = make(Resource_Subscriptions, allocator),
+  }
 }
 
 run :: proc(server: ^Server, srv_transport: Server_Transport, allocator := context.allocator) {

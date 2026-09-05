@@ -85,13 +85,35 @@ Prompt_Entry :: struct {
 }
 Prompts :: map[Prompt_Name]Prompt_Entry
 
+/**** SUBSCRIPTIONS ****/
+Notification_Sink :: #type proc(data: []byte) -> mcp.Error_Code
+
+Subscription_Id :: jsonrpc.Request_Id
+
+Subscription :: struct {
+  id:   Subscription_Id,
+  // whether this subscription has already been acknowledged
+  ack:  bool,
+  // where to write the notification for this subscription
+  sink: Notification_Sink,
+}
+
+Subscriptions :: [dynamic]Subscription_Id
+Resource_Subscriptions :: map[mcp.URI]Subscription_Id
+
 /**** SERVER ****/
 Server :: struct {
-  info:                mcp.Server_Info,
-  capabilities:        mcp.Server_Capabilities,
-  tools:               Tools,
-  resources:           Resources,
-  resources_templates: Resources_Templates,
-  prompts:             Prompts,
+  info:                                 mcp.Server_Info,
+  capabilities:                         mcp.Server_Capabilities,
+  tools:                                Tools,
+  resources:                            Resources,
+  resources_templates:                  Resources_Templates,
+  prompts:                              Prompts,
+
+  // Subscriptions
+  resources_list_changed_subscriptions: Subscriptions,
+  tools_list_changed_subscriptions:     Subscriptions,
+  prompts_list_changed_subscriptions:   Subscriptions,
+  resources_subscriptions:              Resource_Subscriptions,
 }
 
